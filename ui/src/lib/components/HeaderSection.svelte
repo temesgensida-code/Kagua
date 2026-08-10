@@ -1,0 +1,213 @@
+<script lang="ts">
+  import type { Framework } from '$lib/data/sampleDocs';
+
+  interface Props {
+    frameworks: Framework[];
+    onToggleFramework: (id: string) => void;
+  }
+
+  let { frameworks, onToggleFramework }: Props = $props();
+
+  let activeCount = $derived(frameworks.filter(f => f.active).length);
+</script>
+
+<header class="header-container">
+  <!-- Tag line with vertical pink line accent -->
+  <div class="tag-row">
+    <span class="pink-line"></span>
+    <span class="tag-text">DOCUMENT INTELLIGENCE</span>
+  </div>
+
+  <!-- Main Headline -->
+  <h1 class="main-title">
+    <span class="text-compliance">COMPLIANCE</span>
+    <span class="text-check">CHECK</span>
+  </h1>
+
+  <!-- Subtitle / Description -->
+  <p class="description">
+    Upload any policy, contract, or procedure document. Instant analysis against six regulatory frameworks — GDPR, HIPAA, SOX, ISO 27001, CCPA, PCI-DSS.
+  </p>
+
+  <!-- Active Frameworks Badges -->
+  <div class="frameworks-section">
+    <div class="frameworks-label">
+      <span class="bullet">•</span> ACTIVE FRAMEWORKS
+      <span class="count">({activeCount}/{frameworks.length})</span>
+    </div>
+
+    <div class="badges-row">
+      {#each frameworks as fw (fw.id)}
+        <button
+          type="button"
+          class="framework-badge"
+          class:inactive={!fw.active}
+          style="
+            --fw-color: {fw.color};
+            --fw-bg: {fw.bg};
+            --fw-border: {fw.border};
+            --fw-glow: {fw.glow};
+          "
+          onclick={() => onToggleFramework(fw.id)}
+          title="{fw.description} — Click to {fw.active ? 'deactivate' : 'activate'}"
+        >
+          <span class="badge-dot"></span>
+          <span class="badge-name">{fw.name}</span>
+        </button>
+      {/each}
+    </div>
+  </div>
+</header>
+
+<style>
+  .header-container {
+    width: 100%;
+    margin-bottom: 2rem;
+    text-align: left;
+  }
+
+  .tag-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 0.75rem;
+  }
+
+  .pink-line {
+    display: inline-block;
+    width: 3px;
+    height: 14px;
+    background: #ff2a70;
+    box-shadow: 0 0 8px rgba(255, 42, 112, 0.7);
+    border-radius: 1px;
+  }
+
+  .tag-text {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 3px;
+    color: var(--cyan-primary);
+    text-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+    text-transform: uppercase;
+  }
+
+  .main-title {
+    display: flex;
+    flex-direction: column;
+    line-height: 0.95;
+    margin-bottom: 1.25rem;
+  }
+
+  .text-compliance {
+    font-family: var(--font-title);
+    font-size: clamp(2.8rem, 6vw, 4.2rem);
+    font-weight: 900;
+    letter-spacing: 2px;
+    color: #ffffff;
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.15);
+  }
+
+  .text-check {
+    font-family: var(--font-title);
+    font-size: clamp(2.8rem, 6vw, 4.2rem);
+    font-weight: 900;
+    letter-spacing: 2px;
+    color: transparent;
+    -webkit-text-stroke: 1.8px var(--cyan-primary);
+    background-image: 
+      linear-gradient(0deg, rgba(0, 240, 255, 0.2) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 240, 255, 0.2) 1px, transparent 1px);
+    background-size: 8px 8px;
+    -webkit-background-clip: text;
+    background-clip: text;
+    filter: drop-shadow(0 0 12px rgba(0, 240, 255, 0.5));
+  }
+
+  .description {
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: var(--text-muted);
+    max-width: 540px;
+    margin-bottom: 2rem;
+  }
+
+  .frameworks-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .frameworks-label {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 2.5px;
+    color: #556c80;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .bullet {
+    color: var(--cyan-primary);
+    font-size: 0.9rem;
+  }
+
+  .count {
+    color: #3b4e60;
+    font-size: 0.65rem;
+  }
+
+  .badges-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .framework-badge {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    background: var(--fw-bg);
+    border: 1px solid var(--fw-border);
+    border-radius: 4px;
+    color: var(--fw-color);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: var(--fw-glow);
+    user-select: none;
+  }
+
+  .framework-badge:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 16px var(--fw-color);
+    filter: brightness(1.2);
+  }
+
+  .framework-badge.inactive {
+    opacity: 0.35;
+    border-color: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.03);
+    color: #5d6f80;
+    box-shadow: none;
+    filter: grayscale(0.8);
+  }
+
+  .badge-dot {
+    width: 4px;
+    height: 4px;
+    background-color: currentColor;
+    border-radius: 50%;
+    box-shadow: 0 0 6px currentColor;
+  }
+</style>

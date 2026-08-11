@@ -1,4 +1,5 @@
 mod models;
+mod pdf;
 mod secure_buffer;
 mod service;
 mod ws;
@@ -7,8 +8,8 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use axum::{
     extract::{Multipart, State},
-    http::StatusCode,
-    response::Json,
+    http::{header, HeaderMap, StatusCode},
+    response::{IntoResponse, Json},
     routing::{get, post},
     Router,
 };
@@ -16,6 +17,7 @@ use tower_http::cors::{Any, CorsLayer};
 use tracing::info;
 
 use crate::models::AnalysisReport;
+use crate::pdf::generate_audit_pdf;
 use crate::service::process_analysis_pipeline;
 use crate::ws::{ws_handler, WsState};
 
@@ -34,6 +36,7 @@ async fn main() {
         .route("/health", get(health_check))
         .route("/ws", get(ws_handler))
         .route("/analyze", post(analyze_handler))
+        .route("/report/pdf", post(generate_pdf_handler))
         .layer(cors)
         .with_state(ws_state);
 
@@ -110,4 +113,29 @@ async fn analyze_handler(
     let report = process_analysis_pipeline(filename, content_type, bytes, domain_spec, &ws_state).await?;
 
     Ok(Json(report))
+}
+
+async fn generate_pdf_handler(
+    Json(report): Json<AnalysisReport>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let pdf_bytes = generate_audit_pdf(&report).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("PDF generation error: {}", e),
+        )
+    })?;
+
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        header::CONTENT_TYPE,
+        "application/pdf".parse().unwrap(),
+    );
+    headers.insert(
+        header::CONTENT_DISPOSITION,
+        format!("attachment; filename=\"kagua_audit_{}\"", report.filename.replace(".txt", ".pdf").replace(".docx", ".pdf"))
+            .parse()
+            .unwrap(),
+    );
+
+    Ok((headers, pdf_bytes))
 }

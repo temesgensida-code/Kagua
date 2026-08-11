@@ -27,6 +27,8 @@ pub struct ParseSummary {
     pub monetary_count: usize,
     pub jurisdictions: Vec<String>,
     pub detected_clause_types: Vec<String>,
+    pub suggested_domain: Option<String>,
+    pub detected_jurisdiction: Option<String>,
 }
 
 /// Full JSON payload returned from FastAPI `/parse`
@@ -88,6 +90,8 @@ pub struct AnalysisReport {
     pub filename: String,
     pub text_length: usize,
     pub domains_checked: serde_json::Value,
+    pub suggested_domain: Option<String>,
+    pub detected_jurisdiction: Option<String>,
     pub total_violations: usize,
     pub critical_count: usize,
     pub warning_count: usize,

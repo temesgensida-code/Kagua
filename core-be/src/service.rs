@@ -80,6 +80,25 @@ pub async fn process_analysis_pipeline(
         )
     })?;
 
+    let suggested_domain = parser_response.summary.suggested_domain.clone();
+    let detected_jurisdiction = parser_response.summary.detected_jurisdiction.clone();
+
+    // Determine final domain specification (auto-selection logic)
+    let final_domain_spec = if domain_spec == "auto" || domain_spec == json!("auto") {
+        if let Some(ref dom) = suggested_domain {
+            ws_state.broadcast_progress(
+                "DOMAIN_AUTO_SELECTED",
+                &format!("Auto-selected domain rule pack '{}' based on 500-word preamble scan", dom),
+                Some(json!({ "suggested_domain": dom, "jurisdiction": detected_jurisdiction })),
+            );
+            json!([dom])
+        } else {
+            json!("all")
+        }
+    } else {
+        domain_spec.clone()
+    };
+
     ws_state.broadcast_progress(
         "PARSING_COMPLETED",
         &format!(
@@ -92,6 +111,8 @@ pub async fn process_analysis_pipeline(
             "text_length": parser_response.text_length,
             "entities_count": parser_response.entities.len(),
             "clauses_count": parser_response.clauses.len(),
+            "suggested_domain": suggested_domain,
+            "detected_jurisdiction": detected_jurisdiction,
         })),
     );
 
@@ -101,12 +122,12 @@ pub async fn process_analysis_pipeline(
     ws_state.broadcast_progress(
         "REASONING_PROLOG",
         "Sending extracted facts to SWI-Prolog reasoning engine...",
-        Some(json!({ "domain": domain_spec, "facts": facts })),
+        Some(json!({ "domain": final_domain_spec, "facts": facts })),
     );
 
     // 4. Forward to SWI-Prolog /reason endpoint
     let reasoner_req = ReasonerRequest {
-        domain: domain_spec.clone(),
+        domain: final_domain_spec.clone(),
         facts,
     };
 
@@ -176,7 +197,9 @@ pub async fn process_analysis_pipeline(
     let report = AnalysisReport {
         filename,
         text_length: parser_response.text_length,
-        domains_checked: domain_spec,
+        domains_checked: final_domain_spec,
+        suggested_domain,
+        detected_jurisdiction,
         total_violations: mapped_violations.len(),
         critical_count,
         warning_count,
@@ -193,7 +216,9 @@ fn extract_prolog_facts(parser_res: &ParserResponse) -> Map<String, Value> {
     let mut facts = Map::new();
 
     // 1. Jurisdictions
-    if let Some(jurisdiction) = parser_res.summary.jurisdictions.first() {
+    if let Some(ref jurisdiction) = parser_res.summary.detected_jurisdiction {
+        facts.insert("jurisdiction".to_string(), json!(jurisdiction));
+    } else if let Some(jurisdiction) = parser_res.summary.jurisdictions.first() {
         facts.insert("jurisdiction".to_string(), json!(jurisdiction));
     }
 

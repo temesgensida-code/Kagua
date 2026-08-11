@@ -30,6 +30,8 @@ class ParseSummary(BaseModel):
     monetary_count: int
     jurisdictions: List[str]
     detected_clause_types: List[str]
+    suggested_domain: str = Field(..., description="Auto-selected domain rule pack (gdpr, employment, finance, etc.)")
+    detected_jurisdiction: str | None = Field(None, description="Governing state or jurisdiction extracted from preamble")
 
 class ParseResult(BaseModel):
     filename: str
@@ -86,9 +88,50 @@ CLAUSE_PATTERNS = [
 
 # State & Jurisdiction pattern rules
 JURISDICTION_REGEX = re.compile(
-    r"(?i)\b(?:governed\s+by\s+(?:and\s+construed\s+in\s+accordance\s+with\s+)?(?:the\s+laws\s+of\s+)?|laws\s+of\s+(?:the\s+State\s+of\s+)?|jurisdiction\s+of\s+(?:the\s+courts\s+of\s+)?)"
-    r"((?:State\s+of\s+)?[A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)?)\b"
+    r"(?i)\b(?:governed\s+by\s+(?:and\s+construed\s+in\s+accordance\s+with\s+)?(?:the\s+laws\s+of\s+)?(?:the\s+State\s+of\s+)?|laws\s+of\s+(?:the\s+State\s+of\s+)?|jurisdiction\s+of\s+(?:the\s+courts\s+of\s+)?)"
+    r"([A-Z][a-zA-Z]+(?:\s+(?:North|South|East|West|New|York|Jersey|Dakota|Carolina))?)"
 )
+
+def detect_suggested_domain_and_jurisdiction(text: str) -> tuple[str, str | None]:
+    """
+    Scans the first 500 words for governing-law phrases (e.g. 'governed by the laws of the State of X')
+    using regex + spaCy entity matching, and determines the suggested compliance domain.
+    """
+    words = text.split()
+    first_500_words = " ".join(words[:500])
+    lower_500 = first_500_words.lower()
+
+    # 1. Governing law & jurisdiction extraction
+    detected_jurisdiction = None
+    match = JURISDICTION_REGEX.search(first_500_words)
+    if match:
+        detected_jurisdiction = match.group(1).strip()
+    else:
+        # Fallback spaCy NER check on first 500 words
+        doc_head = nlp(first_500_words)
+        for ent in doc_head.ents:
+            if ent.label_ in ("GPE", "LOC"):
+                detected_jurisdiction = ent.text.strip()
+                break
+
+    # 2. Domain classification based on header/preamble keywords
+    if any(k in lower_500 for k in ["gdpr", "general data protection", "personal data", "data controller"]):
+        suggested_domain = "gdpr"
+    elif any(k in lower_500 for k in ["hipaa", "protected health", "ephi", "business associate"]):
+        suggested_domain = "hipaa"
+    elif any(k in lower_500 for k in ["pci-dss", "sox", "sar", "cardholder", "financial report", "payment terms"]):
+        suggested_domain = "finance"
+    elif any(k in lower_500 for k in ["employment", "offer letter", "non-compete", "salary", "independent contractor", "employee"]):
+        suggested_domain = "employment"
+    elif any(k in lower_500 for k in ["iso 27001", "isms", "information security"]):
+        suggested_domain = "iso27001"
+    elif any(k in lower_500 for k in ["ccpa", "california consumer privacy", "do not sell"]):
+        suggested_domain = "ccpa"
+    else:
+        # Default domain based on agreement keyword
+        suggested_domain = "employment" if "agreement" in lower_500[:200] else "gdpr"
+
+    return suggested_domain, detected_jurisdiction
 
 def extract_entities_and_clauses(text: str) -> Dict[str, Any]:
     """Run spaCy NER pipeline and clause rule matchers on raw text."""
@@ -121,7 +164,6 @@ def extract_entities_and_clauses(text: str) -> Dict[str, Any]:
             
     # 2. Regex Jurisdiction Matcher
     for match in JURISDICTION_REGEX.finditer(text):
-        matched_text = match.group(0).strip()
         matched_state = match.group(1).strip()
         start, end = match.span(1)
         
@@ -162,7 +204,6 @@ def extract_entities_and_clauses(text: str) -> Dict[str, Any]:
                 
                 if clause_key not in seen_clause_spans:
                     seen_clause_spans.add(clause_key)
-                    # Snippet max 300 chars for readability
                     snippet = para_stripped[:300] + ("..." if len(para_stripped) > 300 else "")
                     clauses.append(ClauseSpan(
                         clause_type=clause_type,
@@ -171,13 +212,11 @@ def extract_entities_and_clauses(text: str) -> Dict[str, Any]:
                         end_char=para_end
                     ))
 
-    # Deduplicate overlapping entity spans (keep longer/more specific spans)
+    # Deduplicate overlapping entity spans
     filtered_entities: List[EntitySpan] = []
-    # Sort entities by length descending
     entities.sort(key=lambda x: (-(x.end_char - x.start_char), x.start_char))
     
     for ent in entities:
-        # Check if this span overlaps with any already selected longer span
         overlap = False
         for kept in filtered_entities:
             if max(ent.start_char, kept.start_char) < min(ent.end_char, kept.end_char):
@@ -190,8 +229,14 @@ def extract_entities_and_clauses(text: str) -> Dict[str, Any]:
     filtered_entities.sort(key=lambda x: x.start_char)
     clauses.sort(key=lambda x: x.start_char)
 
+    # First 500 words governing law & domain auto-selection scan
+    suggested_domain, detected_jurisdiction = detect_suggested_domain_and_jurisdiction(text)
+
     # Compute Summary
     jurisdictions_set = sorted(list(set(e.text for e in filtered_entities if e.label == "JURISDICTION")))
+    if detected_jurisdiction and detected_jurisdiction not in jurisdictions_set:
+        jurisdictions_set.insert(0, detected_jurisdiction)
+
     clause_types_set = sorted(list(set(c.clause_type for c in clauses)))
     dates_count = sum(1 for e in filtered_entities if e.label == "DATE")
     monetary_count = sum(1 for e in filtered_entities if e.label == "MONEY")
@@ -201,7 +246,9 @@ def extract_entities_and_clauses(text: str) -> Dict[str, Any]:
         dates_count=dates_count,
         monetary_count=monetary_count,
         jurisdictions=jurisdictions_set,
-        detected_clause_types=clause_types_set
+        detected_clause_types=clause_types_set,
+        suggested_domain=suggested_domain,
+        detected_jurisdiction=detected_jurisdiction
     )
 
     return {

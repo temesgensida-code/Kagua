@@ -2,12 +2,15 @@
   import HeaderSection from '$lib/components/HeaderSection.svelte';
   import DropZone from '$lib/components/DropZone.svelte';
   import AnalysisResultView from '$lib/components/AnalysisResultView.svelte';
-  import { INITIAL_FRAMEWORKS, SAMPLE_DOCS, type Framework, type SampleDoc } from '$lib/data/sampleDocs';
+  import { INITIAL_FRAMEWORKS, type Framework } from '$lib/data/sampleDocs';
+  import { analyzeDocument, subscribeProgress, type AnalysisReport, type ProgressEvent } from '$lib/services/api';
 
   let frameworks = $state<Framework[]>(INITIAL_FRAMEWORKS);
   let isScanning = $state(false);
-  let selectedFile = $state<{ name: string; size: string; type: string; content?: string; sampleId?: string } | null>(null);
-  let sampleDoc = $state<SampleDoc | undefined>(undefined);
+  let currentStageMessage = $state('');
+  let progressEvents = $state<ProgressEvent[]>([]);
+  let report = $state<AnalysisReport | undefined>(undefined);
+  let selectedFile = $state<{ name: string; size: string; type: string; content?: string } | null>(null);
 
   function toggleFramework(id: string) {
     frameworks = frameworks.map(fw =>
@@ -15,49 +18,73 @@
     );
   }
 
-  function handleFileSelected(file: { name: string; size: string; type: string; content?: string; sampleId?: string }) {
-    selectedFile = file;
-    if (file.sampleId) {
-      sampleDoc = SAMPLE_DOCS.find(s => s.id === file.sampleId);
-    } else {
-      sampleDoc = undefined;
-    }
+  async function handleFileSelected(fileData: Blob | File, filename: string, sampleContent?: string) {
+    const sizeMB = (fileData.size / (1024 * 1024)).toFixed(2) + ' MB';
+    const ext = filename.split('.').pop()?.toUpperCase() || 'DOC';
+
+    selectedFile = {
+      name: filename,
+      size: sizeMB,
+      type: ext,
+      content: sampleContent
+    };
 
     isScanning = true;
-    setTimeout(() => {
-      isScanning = false;
-    }, 1400);
+    progressEvents = [];
+    currentStageMessage = 'CONNECTING TO RUST CORE BACKEND...';
+
+    // Subscribe to WebSocket progress stream from Rust backend
+    const unsubscribe = subscribeProgress((evt) => {
+      progressEvents = [...progressEvents, evt];
+      currentStageMessage = evt.message;
+    });
+
+    try {
+      // Post document stream to Rust Axum /analyze endpoint
+      const resultReport = await analyzeDocument(fileData, filename, 'auto');
+      report = resultReport;
+    } catch (err: any) {
+      console.error('Backend analysis error:', err);
+      currentStageMessage = `ERROR: ${err.message}`;
+    } finally {
+      setTimeout(() => {
+        isScanning = false;
+        unsubscribe();
+      }, 600);
+    }
   }
 
   function handleReset() {
     selectedFile = null;
-    sampleDoc = undefined;
+    report = undefined;
     isScanning = false;
+    progressEvents = [];
+    currentStageMessage = '';
   }
 </script>
 
 <svelte:head>
-  <title>COMPLIANCE CHECK &bull; Document Intelligence</title>
+  <title>KAGUA &bull; Compliance Intelligence Engine</title>
 </svelte:head>
 
 <div class="page-container">
-  <!-- Header Section with precise typography and active frameworks row -->
   <HeaderSection
     {frameworks}
     onToggleFramework={toggleFramework}
   />
 
-  <!-- Main Work Area: Dropzone or Scan Results -->
   {#if !selectedFile || isScanning}
     <DropZone
       {isScanning}
+      {progressEvents}
+      {currentStageMessage}
       onFileSelected={handleFileSelected}
     />
   {:else}
     <AnalysisResultView
       file={selectedFile}
+      {report}
       {frameworks}
-      {sampleDoc}
       onReset={handleReset}
     />
   {/if}
@@ -68,6 +95,6 @@
     width: 100%;
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 1.25rem;
   }
 </style>

@@ -1,12 +1,15 @@
 <script lang="ts">
   import { SAMPLE_DOCS, type SampleDoc } from '$lib/data/sampleDocs';
+  import type { ProgressEvent } from '$lib/services/api';
 
   interface Props {
     isScanning: boolean;
-    onFileSelected: (file: { name: string; size: string; type: string; content?: string; sampleId?: string }) => void;
+    progressEvents: ProgressEvent[];
+    currentStageMessage: string;
+    onFileSelected: (fileData: Blob | File, filename: string, sampleContent?: string) => void;
   }
 
-  let { isScanning = false, onFileSelected }: Props = $props();
+  let { isScanning = false, progressEvents = [], currentStageMessage = '', onFileSelected }: Props = $props();
 
   let isDragging = $state(false);
   let fileInput: HTMLInputElement;
@@ -26,13 +29,7 @@
     isDragging = false;
     if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
       const file = e.dataTransfer.files[0];
-      const sizeMB = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
-      const ext = file.name.split('.').pop()?.toUpperCase() || 'DOC';
-      onFileSelected({
-        name: file.name,
-        size: sizeMB,
-        type: ext
-      });
+      onFileSelected(file, file.name);
     }
   }
 
@@ -40,13 +37,7 @@
     const input = e.target as HTMLInputElement;
     if (input.files && input.files.length > 0) {
       const file = input.files[0];
-      const sizeMB = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
-      const ext = file.name.split('.').pop()?.toUpperCase() || 'DOC';
-      onFileSelected({
-        name: file.name,
-        size: sizeMB,
-        type: ext
-      });
+      onFileSelected(file, file.name);
     }
   }
 
@@ -55,13 +46,8 @@
   }
 
   function selectSample(sample: SampleDoc) {
-    onFileSelected({
-      name: sample.filename,
-      size: sample.size,
-      type: sample.type,
-      content: sample.content,
-      sampleId: sample.id
-    });
+    const blob = new Blob([sample.content], { type: 'text/plain' });
+    onFileSelected(blob, sample.filename, sample.content);
   }
 </script>
 
@@ -80,7 +66,6 @@
     <div class="corner-bracket top-left"></div>
     <div class="corner-bracket bottom-right"></div>
 
-    <!-- Hidden native file input -->
     <input
       type="file"
       bind:this={fileInput}
@@ -89,17 +74,26 @@
       class="hidden-input"
     />
 
-    <!-- Scanning Overlay Bar -->
+    <!-- Real-time WebSocket Scanning Progress Overlay -->
     {#if isScanning}
       <div class="scan-laser"></div>
       <div class="scanning-hud">
         <div class="spinner"></div>
-        <span class="scan-text">ANALYZING DOCUMENT STRUCTURAL COMPLIANCE...</span>
+        <span class="scan-stage">{currentStageMessage || 'CONNECTING TO RUST ANALYSIS PIPELINE...'}</span>
+
+        <!-- Step-by-Step Progress Events Log -->
+        <div class="progress-log">
+          {#each progressEvents.slice(-4) as evt}
+            <div class="log-line">
+              <span class="log-stage">[{evt.stage}]</span>
+              <span class="log-msg">{evt.message}</span>
+            </div>
+          {/each}
+        </div>
       </div>
     {/if}
 
     <div class="dropzone-content" class:fade={isScanning}>
-      <!-- Cyan Document Icon -->
       <div class="icon-container">
         <svg class="doc-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path
@@ -116,7 +110,6 @@
             stroke-linecap="round"
             stroke-linejoin="round"
           />
-          <!-- Upward Arrow inside -->
           <path
             d="M12 17V11M12 11L9.5 13.5M12 11L14.5 13.5"
             stroke="#00f0ff"
@@ -127,15 +120,12 @@
         </svg>
       </div>
 
-      <!-- Main Action Text -->
-      <h2 class="drop-title">DROP DOCUMENT HERE</h2>
+      <h2 class="drop-title">DROP DOCUMENT FOR COMPLIANCE REASONING</h2>
 
-      <!-- Supported File Types -->
       <p class="file-specs">
-        .TXT &bull; .PDF &bull; .DOC &bull; .DOCX &bull; .MD &mdash; MAX 19MB
+        .TXT &bull; .PDF &bull; .DOC &bull; .DOCX &bull; .MD &mdash; IN-MEMORY STREAMING (NO DISK PERSISTENCE)
       </p>
 
-      <!-- Browse Files Solid Cyan Button -->
       <button type="button" class="btn-browse" onclick={triggerBrowse}>
         BROWSE FILES
       </button>
@@ -167,7 +157,7 @@
   .dropzone-panel {
     position: relative;
     width: 100%;
-    min-height: 280px;
+    min-height: 320px;
     background: #0d1724;
     background: radial-gradient(circle at center, #111d2e 0%, #0b1420 100%);
     border: 1px solid rgba(0, 240, 255, 0.15);
@@ -187,7 +177,6 @@
     box-shadow: 0 0 30px rgba(0, 240, 255, 0.3);
   }
 
-  /* Cyberpunk Glowing Corner Brackets */
   .corner-bracket {
     position: absolute;
     width: 14px;
@@ -227,7 +216,7 @@
   }
 
   .dropzone-content.fade {
-    opacity: 0.2;
+    opacity: 0.15;
     pointer-events: none;
   }
 
@@ -263,7 +252,6 @@
     letter-spacing: 2.5px;
     color: #ffffff;
     margin-bottom: 0.5rem;
-    text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
   }
 
   .file-specs {
@@ -296,10 +284,6 @@
     transform: translateY(-2px) scale(1.02);
   }
 
-  .btn-browse:active {
-    transform: translateY(0) scale(0.98);
-  }
-
   /* Scan Laser Animation */
   .scan-laser {
     position: absolute;
@@ -312,6 +296,11 @@
     z-index: 5;
   }
 
+  @keyframes scanline {
+    0% { top: 5%; }
+    100% { top: 95%; }
+  }
+
   .scanning-hud {
     position: absolute;
     z-index: 6;
@@ -319,6 +308,7 @@
     flex-direction: column;
     align-items: center;
     gap: 12px;
+    max-width: 90%;
   }
 
   .spinner {
@@ -334,15 +324,44 @@
     to { transform: rotate(360deg); }
   }
 
-  .scan-text {
+  .scan-stage {
     font-family: var(--font-mono);
-    font-size: 0.75rem;
+    font-size: 0.82rem;
+    font-weight: 700;
     letter-spacing: 2px;
     color: var(--cyan-primary);
     text-shadow: 0 0 10px rgba(0, 240, 255, 0.8);
+    text-align: center;
   }
 
-  /* Preset Samples Bar */
+  .progress-log {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: rgba(4, 8, 14, 0.85);
+    border: 1px solid rgba(0, 240, 255, 0.2);
+    border-radius: 4px;
+    padding: 8px 14px;
+    max-width: 500px;
+  }
+
+  .log-line {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .log-stage {
+    color: var(--cyan-primary);
+    font-weight: 700;
+  }
+
+  .log-msg {
+    color: var(--text-muted);
+  }
+
   .samples-bar {
     display: flex;
     align-items: center;

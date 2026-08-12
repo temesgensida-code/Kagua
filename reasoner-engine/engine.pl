@@ -34,27 +34,18 @@
 
 %% available_domains(-Domains)
 %% Lists all known domain identifiers.
-available_domains([gdpr, finance, employment, hipaa, iso27001, ccpa, ethiopian_labour_proclamation]).
+available_domains([ethiopian_labour_proclamation, employment]).
 
 %% domain_file(+Domain, -Path)
 %% Maps a domain atom to its rule file path, relative to the rules/ directory.
-domain_file(gdpr,                          'rules/gdpr.pl').
-domain_file(finance,                       'rules/finance.pl').
-domain_file(employment,                    'rules/employment.pl').
-domain_file(hipaa,                         'rules/hipaa.pl').
-domain_file(iso27001,                      'rules/iso27001.pl').
-domain_file(ccpa,                          'rules/ccpa.pl').
 domain_file(ethiopian_labour_proclamation, 'rules/employment.pl').
+domain_file(employment,                    'rules/employment.pl').
 
 %% domain_module(+Domain, -Module)
 %% Maps a domain atom to its Prolog module name.
-domain_module(gdpr,                          gdpr).
-domain_module(finance,                       finance).
-domain_module(employment,                    employment).
-domain_module(hipaa,                         hipaa).
-domain_module(iso27001,                      iso27001).
-domain_module(ccpa,                          ccpa).
 domain_module(ethiopian_labour_proclamation, employment).
+domain_module(employment,                    employment).
+
 
 
 %% load_domain(+Domain)

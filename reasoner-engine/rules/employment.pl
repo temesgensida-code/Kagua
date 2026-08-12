@@ -168,4 +168,89 @@ check_violation(Domain, violation{
     ethiopian_domain(Domain),
     \+ doc_fact(has_sexual_harassment_policy, true).
 
+%% ---------------------------------------------------------------------------
+%% Article 67 — Excessive Overtime Hours Limit (Max 2 Hours/Day)
+%% ---------------------------------------------------------------------------
+check_violation(Domain, violation{
+    rule:          'Ethiopian Labour Proclamation No. 1156/2019 - Article 67',
+    title:         'Excessive Daily Overtime Hours',
+    severity:      warning,
+    description:   Desc,
+    recommendation: 'Cap overtime work to a maximum of 2 hours per day as mandated by Article 67.'
+}) :-
+    ethiopian_domain(Domain),
+    doc_fact(overtime_hours_per_day, Hrs),
+    number(Hrs),
+    Hrs > 2,
+    format(atom(Desc),
+           'Daily overtime hours (~w hours) exceed the statutory maximum limit of 2 hours per day.',
+           [Hrs]).
+
+%% ---------------------------------------------------------------------------
+%% Article 85 — Minimum Sick Leave Entitlement (Min 6 Months)
+%% ---------------------------------------------------------------------------
+check_violation(Domain, violation{
+    rule:          'Ethiopian Labour Proclamation No. 1156/2019 - Article 85',
+    title:         'Insufficient Sick Leave Duration',
+    severity:      warning,
+    description:   Desc,
+    recommendation: 'Ensure sick leave provision allows for up to 6 months of medical leave with graduated pay per Article 85.'
+}) :-
+    ethiopian_domain(Domain),
+    doc_fact(sick_leave_months, Months),
+    number(Months),
+    Months < 6,
+    format(atom(Desc),
+           'Sick leave duration (~w months) is below the statutory maximum entitlement of 6 months under Article 85.',
+           [Months]).
+
+%% ---------------------------------------------------------------------------
+%% Article 39 — Severance Pay Provision Requirement
+%% ---------------------------------------------------------------------------
+check_violation(Domain, violation{
+    rule:          'Ethiopian Labour Proclamation No. 1156/2019 - Article 39',
+    title:         'Missing Severance Pay Provision',
+    severity:      warning,
+    description:   'Employment contract lacks explicit severance pay provisions upon lawful termination or retrenchment.',
+    recommendation: 'Incorporate severance pay terms calculating at least 30 times the daily wage for the first year of service per Article 39.'
+}) :-
+    ethiopian_domain(Domain),
+    \+ doc_fact(has_severance_provision, true).
+
+%% ---------------------------------------------------------------------------
+%% Article 6 — Written Employment Contract / Letter Requirement
+%% ---------------------------------------------------------------------------
+check_violation(Domain, violation{
+    rule:          'Ethiopian Labour Proclamation No. 1156/2019 - Article 6',
+    title:         'Missing Written Contract Provision',
+    severity:      warning,
+    description:   'Contract does not stipulate the issuance of a written employment contract or signed letter within 15 days of employment.',
+    recommendation: 'Include a clause guaranteeing a written employment document within 15 days of commencement per Article 6.'
+}) :-
+    ethiopian_domain(Domain),
+    \+ doc_fact(has_written_contract_provision, true).
+
+%% ---------------------------------------------------------------------------
+%% Article 90 — Young Worker Daily Hours Limit (Max 7 Hours/Day for ages 15-18)
+%% ---------------------------------------------------------------------------
+check_violation(Domain, violation{
+    rule:          'Ethiopian Labour Proclamation No. 1156/2019 - Article 90',
+    title:         'Excessive Working Hours for Young Worker',
+    severity:      critical,
+    description:   Desc,
+    recommendation: 'Cap daily working hours at 7 hours per day for young workers between 15 and 18 years of age per Article 90.'
+}) :-
+    ethiopian_domain(Domain),
+    doc_fact(minimum_worker_age, Age),
+    number(Age),
+    Age >= 15,
+    Age < 18,
+    doc_fact(working_hours_per_day, Hrs),
+    number(Hrs),
+    Hrs > 7,
+    format(atom(Desc),
+           'Young worker (~w years old) assigned daily working hours (~w hours) exceeding the 7 hours/day statutory cap under Article 90.',
+           [Age, Hrs]).
+
+
 

@@ -44,6 +44,7 @@ pub struct ParserResponse {
     pub rag_facts: Option<serde_json::Value>,
     pub pii_redacted_count: Option<usize>,
     pub retrieved_chunks: Option<serde_json::Value>,
+    pub proclamation_metadata: Option<serde_json::Value>,
 }
 
 /// Request sent to SWI-Prolog `/reason` endpoint
@@ -103,6 +104,8 @@ pub struct AnalysisReport {
     pub clauses_detected: usize,
     pub pii_redacted_count: Option<usize>,
     pub rag_facts: Option<serde_json::Value>,
+    pub proclamation_metadata: Option<serde_json::Value>,
+    pub matched_articles: Option<serde_json::Value>,
 }
 
 /// WebSocket Progress Stage Event

@@ -274,11 +274,25 @@
                 </div>
               {/if}
 
-              {#if typeof violation.start_char === 'number' && typeof violation.end_char === 'number'}
-                <div class="offset-badge">
-                  📍 Offset: Chars {violation.start_char} &ndash; {violation.end_char}
-                </div>
-              {/if}
+              <div class="card-action-row">
+                <button
+                  type="button"
+                  class="jump-doc-btn"
+                  class:active={activeViolationIndex === idx}
+                  onclick={(e) => {
+                    e.stopPropagation();
+                    selectViolation(idx);
+                  }}
+                >
+                  📍 {activeViolationIndex === idx ? 'Highlighting in Document...' : 'Jump to Issue in Document'}
+                </button>
+
+                {#if typeof violation.start_char === 'number' && typeof violation.end_char === 'number'}
+                  <div class="offset-badge">
+                    Chars {violation.start_char} &ndash; {violation.end_char}
+                  </div>
+                {/if}
+              </div>
             </div>
           {/each}
         </div>
@@ -907,5 +921,44 @@
     font-size: 0.58rem;
     color: var(--cyan-muted);
     font-style: normal;
+  }
+
+  .card-action-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 0.25rem;
+    flex-wrap: wrap;
+  }
+
+  .jump-doc-btn {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--cyan-primary);
+    background: rgba(0, 240, 255, 0.08);
+    border: 1px solid rgba(0, 240, 255, 0.3);
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .jump-doc-btn:hover {
+    background: rgba(0, 240, 255, 0.2);
+    border-color: var(--cyan-primary);
+    box-shadow: 0 0 12px rgba(0, 240, 255, 0.4);
+    transform: translateY(-1px);
+  }
+
+  .jump-doc-btn.active {
+    background: var(--cyan-primary);
+    color: #040c16;
+    border-color: var(--cyan-primary);
+    box-shadow: 0 0 16px var(--cyan-primary);
   }
 </style>

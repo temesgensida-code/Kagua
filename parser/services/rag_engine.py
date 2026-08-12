@@ -294,17 +294,24 @@ proclamation_corpus = EthiopianLabourProclamationCorpus()
 # 4. Ethiopian Labour Proclamation Fact Extractor for Prolog Reasoning
 # -----------------------------------------------------------------------------
 ETHIOPIAN_LABOUR_QUERIES = {
-    "probation": "probation period probationary trial period testing suitability 60 working days Article 11",
-    "working_hours": "working hours normal hours 8 hours a day 48 hours a week Article 61",
-    "overtime": "overtime work rates 1.25 1.5 1.75 2.0 2.5 rest day public holiday Article 67 68",
+    "probation": "probation period probationary trial period testing suitability 60 working days 12 months Article 11",
+    "working_hours": "working hours normal hours 8 hours a day 48 hours a week 78 hours Article 61",
+    "overtime": "overtime work rates unpaid overtime mandatory overtime 1.25 1.5 1.75 2.0 2.5 Article 67 68",
     "termination_notice": "notice of termination notice period 30 days 1 month 2 months 3 months Article 35 44",
-    "annual_leave": "annual leave 16 working days vacation paid annual leave Article 77",
-    "maternity_leave": "maternity leave 120 consecutive days 30 days prenatal 90 days postnatal Article 88",
+    "annual_leave": "annual leave 16 working days vacation paid annual leave no leave first 3 years Article 77",
+    "maternity_leave": "maternity leave 120 consecutive days 30 days prenatal 90 days postnatal unpaid maternity forced resignation Article 88",
     "sick_leave": "sick leave 6 months medical certificate 100 percent 50 percent pay Article 85",
-    "minimum_age": "minimum age employment 15 years young worker Article 89",
-    "severance_pay": "severance pay 30 days monthly wage termination compensation Article 39",
+    "minimum_age": "minimum age employment 15 years young worker 15-17 adult schedule Article 89 90",
+    "severance_pay": "severance pay 30 days monthly wage termination compensation forfeit severance Article 39 40",
     "prohibited_acts": "prohibited acts discrimination sexual harassment sexual assault forced labor Article 14",
-    "written_contract": "written contract element 15 days letter Article 4 6 7"
+    "written_contract": "written contract element 15 days letter Article 4 6 7",
+    "hiring_discrimination": "applicant restriction sex gender male female religion marital status single married Article 14 87",
+    "pregnancy_discrimination": "pregnant pregnancy test maternity exclusion terminate pregnancy childbirth resignation Article 14 88",
+    "weekly_rest": "weekly rest day 7 days a week continuous work rest day denied Article 70",
+    "ppe_safety": "personal protective equipment ppe purchase safety gear worker buys ppe cost Article 92 93",
+    "labour_inspection": "labour inspector government inspector ban contact inspector report violation Article 181",
+    "trade_union": "trade union union membership ban union terminate union organization Article 14 26",
+    "dispute_waiver": "appeal dismissal labour board court waive dispute resolution rights Article 138"
 }
 
 def extract_number_near_keyword(
@@ -498,6 +505,153 @@ def extract_rag_compliance_facts(raw_text: str) -> Dict[str, Any]:
                 "value": val_age,
                 "source_text": snip_age[:200] if snip_age else c["text"][:200],
                 "article_reference": "Article 89(1)"
+            }
+            break
+
+    # -------------------------------------------------------------------------
+    # Comprehensive Extraction for all 14 Proclamation No. 1156/2019 Violation Categories
+    # -------------------------------------------------------------------------
+    full_lower = sanitized_text.lower()
+
+    # 1. Hiring Discrimination (Articles 14(1)(b-c) & 87)
+    hd_keywords = ["male only", "female only", "women only", "men only", "single only", "unmarried", "religion requirement", "christian only", "muslim only", "restrict applicants by sex", "restrict applicants by gender", "restricted to female", "restricted to male", "marital status requirement"]
+    for kw in hd_keywords:
+        if kw in full_lower:
+            prolog_facts["hiring_discrimination_detected"] = True
+            fact_provenance["hiring_discrimination_detected"] = {
+                "value": True,
+                "source_text": f"Found discriminatory requirement '{kw}' in document text.",
+                "article_reference": "Articles 14(1)(b-c) & 87"
+            }
+            break
+
+    # 2. Pregnancy Discrimination & Mandatory Resignation (Articles 14(1)(b) & 88)
+    preg_keywords = ["pregnant", "pregnancy", "childbirth", "maternity test", "resignation upon pregnancy", "terminate if pregnant", "resignation on childbirth", "no pregnant applicants"]
+    for kw in preg_keywords:
+        if kw in full_lower:
+            prolog_facts["pregnancy_discrimination_detected"] = True
+            fact_provenance["pregnancy_discrimination_detected"] = {
+                "value": True,
+                "source_text": f"Found pregnancy restriction/exclusion clause '{kw}' in document text.",
+                "article_reference": "Articles 14(1)(b) & 88"
+            }
+            break
+
+    # 3. Unpaid Mandatory Overtime (Article 68)
+    ot_unpaid_kw = ["unpaid overtime", "overtime without pay", "no overtime pay", "overtime included in base salary", "without additional compensation for overtime", "unpaid extra hours"]
+    for kw in ot_unpaid_kw:
+        if kw in full_lower:
+            prolog_facts["unpaid_overtime_detected"] = True
+            fact_provenance["unpaid_overtime_detected"] = {
+                "value": True,
+                "source_text": f"Found unpaid overtime clause '{kw}' in document text.",
+                "article_reference": "Article 68"
+            }
+            break
+
+    # 4. Denial of Mandatory Weekly Rest Day (Article 70)
+    wr_kw = ["no weekly rest", "7 days a week", "seven days a week", "continuous work without rest", "no rest day for", "waive weekly rest"]
+    for kw in wr_kw:
+        if kw in full_lower:
+            prolog_facts["weekly_rest_denied"] = True
+            fact_provenance["weekly_rest_denied"] = {
+                "value": True,
+                "source_text": f"Found weekly rest day denial clause '{kw}' in document text.",
+                "article_reference": "Article 70"
+            }
+            break
+
+    # 5. Multi-Year Annual Leave Denial / Delay (Article 77(1) & (4))
+    al_deny_kw = ["no annual leave for the first", "no leave for the first", "leave begins after 3 years", "leave after 2 years", "forfeiture of annual leave", "no annual leave during the first"]
+    for kw in al_deny_kw:
+        if kw in full_lower:
+            prolog_facts["annual_leave_denied_initial_years"] = True
+            fact_provenance["annual_leave_denied_initial_years"] = {
+                "value": True,
+                "source_text": f"Found annual leave delay/denial clause '{kw}' in document text.",
+                "article_reference": "Article 77(1) & (4)"
+            }
+            break
+
+    # 6. Denial of Paid Maternity Leave (Article 88(2-3))
+    ml_deny_kw = ["unpaid maternity leave", "no paid maternity leave", "maternity leave without pay", "maternity leave is unpaid"]
+    for kw in ml_deny_kw:
+        if kw in full_lower:
+            prolog_facts["maternity_leave_denied"] = True
+            fact_provenance["maternity_leave_denied"] = {
+                "value": True,
+                "source_text": f"Found unpaid maternity leave clause '{kw}' in document text.",
+                "article_reference": "Article 88(2-3)"
+            }
+            break
+
+    # 7. Blanket Forfeiture of Severance Pay (Articles 39 & 40)
+    sev_forfeit_kw = ["forfeit severance", "forfeiture of severance", "no severance pay", "waive severance", "relinquish severance", "without severance pay"]
+    for kw in sev_forfeit_kw:
+        if kw in full_lower:
+            prolog_facts["severance_forfeited"] = True
+            fact_provenance["severance_forfeited"] = {
+                "value": True,
+                "source_text": f"Found severance pay forfeiture clause '{kw}' in document text.",
+                "article_reference": "Articles 39 & 40"
+            }
+            break
+
+    # 8. Worker Paid Personal Protective Equipment (PPE) (Articles 92 & 93)
+    ppe_kw = ["buy own ppe", "worker must purchase", "employee must purchase", "purchase safety gear", "buy protective equipment", "safety gear at worker expense", "ppe at employee cost"]
+    for kw in ppe_kw:
+        if kw in full_lower:
+            prolog_facts["worker_pays_ppe"] = True
+            fact_provenance["worker_pays_ppe"] = {
+                "value": True,
+                "source_text": f"Found worker PPE cost-shifting clause '{kw}' in document text.",
+                "article_reference": "Articles 92 & 93"
+            }
+            break
+
+    # 9. Unlawful Restriction of Access to Labour Inspectors (Article 181)
+    li_kw = ["contacting labour inspector", "contact labour inspector", "contact government inspector", "forbidden to contact inspector", "no communication with ministry of labor", "banning inspector access"]
+    for kw in li_kw:
+        if kw in full_lower:
+            prolog_facts["prohibits_labour_inspection"] = True
+            fact_provenance["prohibits_labour_inspection"] = {
+                "value": True,
+                "source_text": f"Found restriction on contacting labour inspectors '{kw}' in document text.",
+                "article_reference": "Article 181"
+            }
+            break
+
+    # 10. Young Workers Full Adult Work Schedule (Articles 89 & 90)
+    yw_kw = ["15 to 17", "15-17", "young worker", "ages 15-17", "under 18"]
+    if any(k in full_lower for k in yw_kw) and ("8 hours" in full_lower or "full schedule" in full_lower or "normal shift" in full_lower or "78 hours" in full_lower):
+        prolog_facts["young_worker_adult_schedule"] = True
+        fact_provenance["young_worker_adult_schedule"] = {
+            "value": True,
+            "source_text": "Found young worker assigned to full adult work schedule exceeding 7 hrs/day.",
+            "article_reference": "Article 90"
+        }
+
+    # 11. Trade Union Membership Ban (Articles 14(1)(a) & 26(2)(a))
+    tu_kw = ["banning trade union", "ban trade union", "no trade union", "prohibit union", "forbidden to join union", "termination for joining union", "no union membership"]
+    for kw in tu_kw:
+        if kw in full_lower:
+            prolog_facts["trade_union_prohibited"] = True
+            fact_provenance["trade_union_prohibited"] = {
+                "value": True,
+                "source_text": f"Found trade union prohibition clause '{kw}' in document text.",
+                "article_reference": "Articles 14(1)(a) & 26(2)(a)"
+            }
+            break
+
+    # 12. Pre-Waiver of Statutory Dispute Resolution / Court Access Rights (Part Nine / Article 138+)
+    dw_kw = ["waive right to appeal", "cannot appeal dismissal", "waive court access", "no recourse to labour board", "forfeit appeal rights", "waive dispute resolution"]
+    for kw in dw_kw:
+        if kw in full_lower:
+            prolog_facts["dispute_appeal_waived"] = True
+            fact_provenance["dispute_appeal_waived"] = {
+                "value": True,
+                "source_text": f"Found pre-waiver of dispute resolution/court appeal rights '{kw}' in document text.",
+                "article_reference": "Article 138 (Part Nine)"
             }
             break
 

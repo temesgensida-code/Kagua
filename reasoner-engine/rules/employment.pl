@@ -252,5 +252,162 @@ check_violation(Domain, violation{
            'Young worker (~w years old) assigned daily working hours (~w hours) exceeding the 7 hours/day statutory cap under Article 90.',
            [Age, Hrs]).
 
+%% ---------------------------------------------------------------------------
+%% Article 14(1)(b-c) & 87 — Hiring Discrimination (Sex, Religion, Marital Status)
+%% ---------------------------------------------------------------------------
+check_violation(Domain, violation{
+    rule:          'Ethiopian Labour Proclamation No. 1156/2019 - Articles 14(1)(b-c) & 87',
+    title:         'Discriminatory Hiring Criteria',
+    severity:      critical,
+    description:   'Vacancy or contract restricts applicants by sex, gender, religion, or marital status, violating equal opportunity principles.',
+    recommendation: 'Remove all discriminatory restrictions based on sex, religion, or marital status per Articles 14(1)(b-c) and 87.'
+}) :-
+    ethiopian_domain(Domain),
+    doc_fact(hiring_discrimination_detected, true).
+
+%% ---------------------------------------------------------------------------
+%% Article 14(1)(b) & 88 — Pregnancy Discrimination / Forced Resignation
+%% ---------------------------------------------------------------------------
+check_violation(Domain, violation{
+    rule:          'Ethiopian Labour Proclamation No. 1156/2019 - Articles 14(1)(b) & 88',
+    title:         'Pregnancy Discrimination & Mandatory Resignation',
+    severity:      critical,
+    description:   'Contract excludes pregnant applicants or mandates resignation/termination upon pregnancy or childbirth.',
+    recommendation: 'Eliminate all clauses discriminating against pregnant workers or forcing resignation upon childbirth under Articles 14 and 88.'
+}) :-
+    ethiopian_domain(Domain),
+    doc_fact(pregnancy_discrimination_detected, true).
+
+%% ---------------------------------------------------------------------------
+%% Article 68 — Unpaid Mandatory Overtime
+%% ---------------------------------------------------------------------------
+check_violation(Domain, violation{
+    rule:          'Ethiopian Labour Proclamation No. 1156/2019 - Article 68',
+    title:         'Unpaid Mandatory Overtime Work',
+    severity:      critical,
+    description:   'Contract requires mandatory overtime without providing statutory overtime premium rates (1.25x - 2.5x base rate).',
+    recommendation: 'Ensure all overtime work is compensated at statutory rates (1.25x to 2.5x) as mandated by Article 68.'
+}) :-
+    ethiopian_domain(Domain),
+    doc_fact(unpaid_overtime_detected, true).
+
+%% ---------------------------------------------------------------------------
+%% Article 70 — Denial of Mandatory Weekly Rest Day
+%% ---------------------------------------------------------------------------
+check_violation(Domain, violation{
+    rule:          'Ethiopian Labour Proclamation No. 1156/2019 - Article 70',
+    title:         'Denial of Mandatory Weekly Rest Day',
+    severity:      critical,
+    description:   'Contract requires continuous work without guaranteeing at least 24 consecutive hours of weekly rest.',
+    recommendation: 'Grant all workers at least 24 consecutive hours of weekly rest every 7 days as mandated by Article 70.'
+}) :-
+    ethiopian_domain(Domain),
+    doc_fact(weekly_rest_denied, true).
+
+%% ---------------------------------------------------------------------------
+%% Article 77(1) & (4) — Multi-Year Annual Leave Denial / Forfeiture
+%% ---------------------------------------------------------------------------
+check_violation(Domain, violation{
+    rule:          'Ethiopian Labour Proclamation No. 1156/2019 - Article 77(1) & (4)',
+    title:         'Denial or Multi-Year Delay of Paid Annual Leave',
+    severity:      critical,
+    description:   'Contract denies paid annual leave during initial years of service or enforces forfeiture of annual leave entitlement.',
+    recommendation: 'Provide a minimum of 16 working days paid annual leave starting from the first year of service per Article 77.'
+}) :-
+    ethiopian_domain(Domain),
+    doc_fact(annual_leave_denied_initial_years, true).
+
+%% ---------------------------------------------------------------------------
+%% Article 88(2-3) — Denial of Paid Maternity Leave
+%% ---------------------------------------------------------------------------
+check_violation(Domain, violation{
+    rule:          'Ethiopian Labour Proclamation No. 1156/2019 - Article 88(2-3)',
+    title:         'Denial of Fully Paid Maternity Leave',
+    severity:      critical,
+    description:   'Contract fails to grant 120 consecutive days of fully paid maternity leave (30 days prenatal + 90 days postnatal).',
+    recommendation: 'Grant female workers 120 consecutive days of fully paid maternity leave in accordance with Article 88.'
+}) :-
+    ethiopian_domain(Domain),
+    doc_fact(maternity_leave_denied, true).
+
+%% ---------------------------------------------------------------------------
+%% Articles 39 & 40 — Blanket Forfeiture of Severance Pay
+%% ---------------------------------------------------------------------------
+check_violation(Domain, violation{
+    rule:          'Ethiopian Labour Proclamation No. 1156/2019 - Articles 39 & 40',
+    title:         'Blanket Forfeiture / Waiver of Statutory Severance Pay',
+    severity:      critical,
+    description:   'Contract stipulates blanket forfeiture or pre-waiver of statutory severance pay upon termination.',
+    recommendation: 'Remove severance forfeiture clauses; severance pay is a statutory right upon qualifying termination under Articles 39 & 40.'
+}) :-
+    ethiopian_domain(Domain),
+    doc_fact(severance_forfeited, true).
+
+%% ---------------------------------------------------------------------------
+%% Articles 92 & 93 — Illegal Cost-Shifting of PPE to Workers
+%% ---------------------------------------------------------------------------
+check_violation(Domain, violation{
+    rule:          'Ethiopian Labour Proclamation No. 1156/2019 - Articles 92 & 93',
+    title:         'Illegal Cost-Shifting of Personal Protective Equipment (PPE)',
+    severity:      critical,
+    description:   'Contract requires workers to purchase or pay for their own Personal Protective Equipment (PPE) and occupational safety gear.',
+    recommendation: 'Employer must provide all necessary PPE and safety equipment free of charge under Articles 92 & 93.'
+}) :-
+    ethiopian_domain(Domain),
+    doc_fact(worker_pays_ppe, true).
+
+%% ---------------------------------------------------------------------------
+%% Article 181 — Unlawful Restriction of Access to Labour Inspectors
+%% ---------------------------------------------------------------------------
+check_violation(Domain, violation{
+    rule:          'Ethiopian Labour Proclamation No. 1156/2019 - Article 181',
+    title:         'Unlawful Restriction of Access to Labour Inspectors',
+    severity:      critical,
+    description:   'Contract prohibits or restricts workers from contacting government labour inspectors or reporting violations.',
+    recommendation: 'Delete prohibitions against contacting labour inspectors; worker access to inspectorate is protected under Article 181.'
+}) :-
+    ethiopian_domain(Domain),
+    doc_fact(prohibits_labour_inspection, true).
+
+%% ---------------------------------------------------------------------------
+%% Article 90 — Young Workers Full Adult Work Schedule
+%% ---------------------------------------------------------------------------
+check_violation(Domain, violation{
+    rule:          'Ethiopian Labour Proclamation No. 1156/2019 - Article 90',
+    title:         'Young Workers (15-17) Assigned Full Adult Schedule',
+    severity:      critical,
+    description:   'Contract assigns young workers (ages 15-17) to full adult 8+ hour daily work schedules instead of the statutory 7-hour cap.',
+    recommendation: 'Limit daily work to maximum 7 hours/day for young workers between 15 and 18 years per Article 90.'
+}) :-
+    ethiopian_domain(Domain),
+    doc_fact(young_worker_adult_schedule, true).
+
+%% ---------------------------------------------------------------------------
+%% Articles 14(1)(a) & 26(2)(a) — Trade Union Prohibition & Union Termination
+%% ---------------------------------------------------------------------------
+check_violation(Domain, violation{
+    rule:          'Ethiopian Labour Proclamation No. 1156/2019 - Articles 14(1)(a) & 26(2)(a)',
+    title:         'Prohibition of Trade Union Membership & Illegal Union Termination',
+    severity:      critical,
+    description:   'Contract bans trade union membership or threatens termination for joining or participating in trade union activities.',
+    recommendation: 'Remove prohibitions against trade union membership; freedom of association is guaranteed under Articles 14 & 26.'
+}) :-
+    ethiopian_domain(Domain),
+    doc_fact(trade_union_prohibited, true).
+
+%% ---------------------------------------------------------------------------
+%% Part Nine (Article 138+) — Pre-Waiver of Dispute Resolution & Appeal Rights
+%% ---------------------------------------------------------------------------
+check_violation(Domain, violation{
+    rule:          'Ethiopian Labour Proclamation No. 1156/2019 - Article 138 (Part Nine)',
+    title:         'Unlawful Pre-Waiver of Statutory Dispute Resolution Rights',
+    severity:      critical,
+    description:   'Contract forces workers to pre-waive their right to appeal dismissals to the Labour Relations Board or courts.',
+    recommendation: 'Eliminate dispute waiver clauses; rights to appeal to Labour Boards and courts under Part Nine cannot be waived as a condition of employment.'
+}) :-
+    ethiopian_domain(Domain),
+    doc_fact(dispute_appeal_waived, true).
+
+
 
 

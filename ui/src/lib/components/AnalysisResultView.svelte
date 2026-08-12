@@ -94,6 +94,17 @@
   function selectViolation(idx: number) {
     activeViolationIndex = activeViolationIndex === idx ? null : idx;
   }
+
+  function getFactDetails(item: any): { value: any; articleRef?: string; sourceText?: string } {
+    if (item && typeof item === 'object' && item !== null) {
+      return {
+        value: item.value ?? item,
+        articleRef: item.article_reference,
+        sourceText: item.source_text
+      };
+    }
+    return { value: item };
+  }
 </script>
 
 <div class="result-container">
@@ -247,6 +258,18 @@
                 </div>
               {/if}
 
+              {#if violation.article_citation}
+                <div class="statutory-citation-badge">
+                  📜 <strong>{violation.article_citation}</strong>
+                </div>
+              {/if}
+
+              {#if violation.statutory_text}
+                <div class="statutory-text-box">
+                  <span class="stat-lbl">STATUTORY PROVISION:</span> "{violation.statutory_text}"
+                </div>
+              {/if}
+
               {#if typeof violation.start_char === 'number' && typeof violation.end_char === 'number'}
                 <div class="offset-badge">
                   📍 Offset: Chars {violation.start_char} &ndash; {violation.end_char}
@@ -256,6 +279,34 @@
           {/each}
         </div>
       </div>
+
+      <!-- Fact Provenance & Statutory Linkage Panel -->
+      {#if report?.fact_provenance && Object.keys(report.fact_provenance).length > 0}
+        <div class="provenance-card">
+          <div class="provenance-header">
+            <span class="prov-icon">🔍</span>
+            <h4 class="prov-title">FACT PROVENANCE & STATUTORY LINKAGE</h4>
+          </div>
+          <div class="provenance-list">
+            {#each Object.entries(report.fact_provenance) as [factKey, factData]}
+              {@const details = getFactDetails(factData)}
+              <div class="prov-item">
+                <div class="prov-top">
+                  <span class="prov-key">{factKey}: <strong class="prov-val">{JSON.stringify(details.value)}</strong></span>
+                  {#if details.articleRef}
+                    <span class="prov-art-tag">{details.articleRef}</span>
+                  {/if}
+                </div>
+                {#if details.sourceText}
+                  <div class="prov-source">
+                    <span class="prov-src-lbl">Contract Source:</span> "{details.sourceText}"
+                  </div>
+                {/if}
+              </div>
+            {/each}
+          </div>
+        </div>
+      {/if}
     </div>
   </div>
 </div>
@@ -734,5 +785,123 @@
     padding: 2px 6px;
     border-radius: 2px;
     align-self: flex-start;
+  }
+
+  .statutory-citation-badge {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: #5ce1e6;
+    background: rgba(0, 240, 255, 0.08);
+    border: 1px solid rgba(0, 240, 255, 0.25);
+    padding: 4px 8px;
+    border-radius: 3px;
+  }
+
+  .statutory-text-box {
+    font-family: var(--font-body);
+    font-size: 0.72rem;
+    color: #9cb3c9;
+    background: rgba(4, 12, 22, 0.9);
+    border-left: 2px solid #5ce1e6;
+    padding: 5px 8px;
+    border-radius: 2px;
+    font-style: italic;
+  }
+
+  .stat-lbl {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: #5ce1e6;
+    font-style: normal;
+  }
+
+  /* Fact Provenance Card */
+  .provenance-card {
+    background: #0d1724;
+    border: 1px solid rgba(0, 240, 255, 0.2);
+    border-radius: 6px;
+    padding: 1rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .provenance-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding-bottom: 0.4rem;
+  }
+
+  .prov-icon {
+    font-size: 0.9rem;
+  }
+
+  .prov-title {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 1.5px;
+    color: #ffffff;
+    font-weight: 700;
+  }
+
+  .provenance-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  .prov-item {
+    background: rgba(6, 11, 18, 0.85);
+    border: 1px solid rgba(0, 240, 255, 0.1);
+    border-radius: 4px;
+    padding: 0.6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+
+  .prov-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .prov-key {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: #a0b2c6;
+  }
+
+  .prov-val {
+    color: var(--cyan-primary);
+  }
+
+  .prov-art-tag {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: #ffd700;
+    background: rgba(255, 215, 0, 0.12);
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    padding: 1px 5px;
+    border-radius: 2px;
+  }
+
+  .prov-source {
+    font-family: var(--font-body);
+    font-size: 0.7rem;
+    color: #7b90a6;
+    font-style: italic;
+  }
+
+  .prov-src-lbl {
+    font-family: var(--font-mono);
+    font-size: 0.58rem;
+    color: var(--cyan-muted);
+    font-style: normal;
   }
 </style>

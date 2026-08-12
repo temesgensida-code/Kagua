@@ -34,25 +34,28 @@
 
 %% available_domains(-Domains)
 %% Lists all known domain identifiers.
-available_domains([gdpr, finance, employment, hipaa, iso27001, ccpa]).
+available_domains([gdpr, finance, employment, hipaa, iso27001, ccpa, ethiopian_labour_proclamation]).
 
 %% domain_file(+Domain, -Path)
 %% Maps a domain atom to its rule file path, relative to the rules/ directory.
-domain_file(gdpr,       'rules/gdpr.pl').
-domain_file(finance,    'rules/finance.pl').
-domain_file(employment, 'rules/employment.pl').
-domain_file(hipaa,      'rules/hipaa.pl').
-domain_file(iso27001,   'rules/iso27001.pl').
-domain_file(ccpa,       'rules/ccpa.pl').
+domain_file(gdpr,                          'rules/gdpr.pl').
+domain_file(finance,                       'rules/finance.pl').
+domain_file(employment,                    'rules/employment.pl').
+domain_file(hipaa,                         'rules/hipaa.pl').
+domain_file(iso27001,                      'rules/iso27001.pl').
+domain_file(ccpa,                          'rules/ccpa.pl').
+domain_file(ethiopian_labour_proclamation, 'rules/employment.pl').
 
 %% domain_module(+Domain, -Module)
 %% Maps a domain atom to its Prolog module name.
-domain_module(gdpr,       gdpr).
-domain_module(finance,    finance).
-domain_module(employment, employment).
-domain_module(hipaa,      hipaa).
-domain_module(iso27001,   iso27001).
-domain_module(ccpa,       ccpa).
+domain_module(gdpr,                          gdpr).
+domain_module(finance,                       finance).
+domain_module(employment,                    employment).
+domain_module(hipaa,                         hipaa).
+domain_module(iso27001,                      iso27001).
+domain_module(ccpa,                          ccpa).
+domain_module(ethiopian_labour_proclamation, employment).
+
 
 %% load_domain(+Domain)
 %% Loads a domain rule module if not already loaded.
@@ -61,9 +64,16 @@ domain_module(ccpa,       ccpa).
 load_domain(Domain) :-
     loaded_domain(Domain), !.
 load_domain(Domain) :-
-    domain_file(Domain, File),
+    domain_file(Domain, RelFile),
+    ( exists_file(RelFile)
+    -> File = RelFile
+    ;  atom_concat('reasoner-engine/', RelFile, FullFile), exists_file(FullFile)
+    -> File = FullFile
+    ;  File = RelFile
+    ),
     use_module(File, []),        %% import nothing — we call module-qualified
     assert(loaded_domain(Domain)).
+
 
 %% load_domains(+DomainList)
 %% Convenience: load a list of domains.

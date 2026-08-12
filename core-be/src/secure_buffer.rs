@@ -6,6 +6,7 @@ pub struct SecureBuffer {
     data: Vec<u8>,
 }
 
+#[allow(dead_code)]
 impl SecureBuffer {
     pub fn new(data: Vec<u8>) -> Self {
         Self { data }

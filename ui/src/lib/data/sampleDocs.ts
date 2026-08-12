@@ -10,72 +10,84 @@ export interface Framework {
   ruleCount: number;
 }
 
+export interface Framework {
+  id: string;
+  name: string;
+  color: string;
+  bg: string;
+  border: string;
+  glow: string;
+  active: boolean;
+  description: string;
+  ruleCount: number;
+}
+
 export const INITIAL_FRAMEWORKS: Framework[] = [
   {
-    id: 'gdpr',
-    name: 'GDPR',
-    color: '#00e5ff',
-    bg: 'rgba(0, 229, 255, 0.12)',
-    border: 'rgba(0, 229, 255, 0.5)',
-    glow: '0 0 12px rgba(0, 229, 255, 0.3)',
+    id: 'ethiopian_labour_proclamation',
+    name: 'Labour Proclamation 1156/2019',
+    color: '#00f0ff',
+    bg: 'rgba(0, 240, 255, 0.12)',
+    border: 'rgba(0, 240, 255, 0.5)',
+    glow: '0 0 12px rgba(0, 240, 255, 0.3)',
     active: true,
-    description: 'General Data Protection Regulation (EU 2016/679)',
-    ruleCount: 99
+    description: 'Federal Democratic Republic of Ethiopia Labour Proclamation No. 1156/2019',
+    ruleCount: 14
   },
   {
-    id: 'hipaa',
-    name: 'HIPAA',
-    color: '#ff528c',
-    bg: 'rgba(255, 82, 140, 0.12)',
-    border: 'rgba(255, 82, 140, 0.5)',
-    glow: '0 0 12px rgba(255, 82, 140, 0.3)',
-    active: true,
-    description: 'Health Insurance Portability and Accountability Act',
-    ruleCount: 54
-  },
-  {
-    id: 'sox',
-    name: 'SOX',
+    id: 'eth_probation',
+    name: 'Article 11 Probation',
     color: '#ffd700',
     bg: 'rgba(255, 215, 0, 0.12)',
     border: 'rgba(255, 215, 0, 0.5)',
     glow: '0 0 12px rgba(255, 215, 0, 0.3)',
     active: true,
-    description: 'Sarbanes-Oxley Act for Corporate Financial Integrity',
-    ruleCount: 42
+    description: 'Probation period statutory limit (Max 60 working days per Art. 11(3))',
+    ruleCount: 1
   },
   {
-    id: 'iso27001',
-    name: 'ISO 27001',
+    id: 'eth_working_hours',
+    name: 'Article 61 & 67 Working Hours',
     color: '#00ff88',
     bg: 'rgba(0, 255, 136, 0.12)',
     border: 'rgba(0, 255, 136, 0.5)',
     glow: '0 0 12px rgba(0, 255, 136, 0.3)',
     active: true,
-    description: 'Information Security Management System Standard',
-    ruleCount: 114
+    description: 'Normal working hours cap (8 hrs/day, 48 hrs/wk) & overtime cap (2 hrs/day)',
+    ruleCount: 3
   },
   {
-    id: 'ccpa',
-    name: 'CCPA',
+    id: 'eth_maternity',
+    name: 'Article 88 Maternity Leave',
+    color: '#ff528c',
+    bg: 'rgba(255, 82, 140, 0.12)',
+    border: 'rgba(255, 82, 140, 0.5)',
+    glow: '0 0 12px rgba(255, 82, 140, 0.3)',
+    active: true,
+    description: 'Paid maternity leave statutory entitlement (120 consecutive days)',
+    ruleCount: 1
+  },
+  {
+    id: 'eth_harassment',
+    name: 'Article 14 Workplace Protections',
     color: '#d070ff',
     bg: 'rgba(208, 112, 255, 0.12)',
     border: 'rgba(208, 112, 255, 0.5)',
     glow: '0 0 12px rgba(208, 112, 255, 0.3)',
     active: true,
-    description: 'California Consumer Privacy Act',
-    ruleCount: 38
+    description: 'Anti-discrimination and zero-tolerance sexual harassment policy mandates',
+    ruleCount: 2
   },
   {
-    id: 'pci-dss',
-    name: 'PCI-DSS',
+    id: 'eth_severance',
+    name: 'Article 39 Severance Pay',
     color: '#ffaa00',
     bg: 'rgba(255, 170, 0, 0.12)',
     border: 'rgba(255, 170, 0, 0.5)',
     glow: '0 0 12px rgba(255, 170, 0, 0.3)',
     active: true,
-    description: 'Payment Card Industry Data Security Standard',
-    ruleCount: 78
+    description: 'Severance compensation terms for lawful contract termination',
+    ruleCount: 1
   }
 ];
 
@@ -97,81 +109,74 @@ export interface SampleDoc {
 
 export const SAMPLE_DOCS: SampleDoc[] = [
   {
-    id: 'nda',
-    filename: 'Master_Service_Agreement_v4.2.pdf',
-    size: '1.4 MB',
+    id: 'eth_employment_contract',
+    filename: 'Ethiopia_Standard_Employment_Contract.pdf',
+    size: '1.2 MB',
     type: 'PDF',
-    content: `MASTER SERVICE & CONFIDENTIALITY AGREEMENT... Section 4. Data Storage: Party B agrees to store all end-user metrics for an indefinite period on non-encrypted cold storage backups...`,
-    complianceScore: 92,
+    content: `EMPLOYMENT CONTRACT UNDER ETHIOPIAN LABOUR LAW
+
+1. PROBATION PERIOD
+The employee shall be subject to a probation period of 90 working days starting from the date of commencement.
+
+2. WORKING HOURS & OVERTIME
+Normal working hours shall be 9 hours per day (45 hours per week). Overtime work may be requested up to 3 hours per day.
+
+3. LEAVE ENTITLEMENTS
+The employee is entitled to 12 working days of annual leave. Maternity leave shall consist of 60 consecutive days with full pay. Sick leave up to 3 months is permitted with medical certification.
+
+4. TERMINATION NOTICE
+Either party may terminate this agreement by providing 15 days written notice.`,
+    complianceScore: 35,
     findings: [
       {
-        framework: 'GDPR',
-        severity: 'WARNING',
-        title: 'Article 5(1)(e) - Data Storage Limitation',
-        description: 'Indefinite data retention clause detected in Section 4 without defined expiry schedule.',
-        recommendation: 'Specify explicit retention periods (e.g. 24 months) and automated deletion workflow.'
-      },
-      {
-        framework: 'ISO 27001',
+        framework: 'Ethiopian Labour Proclamation No. 1156/2019',
         severity: 'CRITICAL',
-        title: 'Control A.10.1.1 - Policy on Use of Cryptographic Controls',
-        description: 'Unencrypted storage specified for end-user metrics.',
-        recommendation: 'Enforce AES-256 encryption at rest for all stored metrics and backup archives.'
+        title: 'Article 11(3) - Excessive Probation Period',
+        description: 'Specified probation period of 90 working days exceeds statutory limit of 60 working days.',
+        recommendation: 'Reduce probation period to max 60 working days per Article 11(3).'
       },
       {
-        framework: 'HIPAA',
-        severity: 'PASS',
-        title: '§ 164.312(a)(1) - Access Control',
-        description: 'Role-based access restrictions compliant with HIPAA administrative safeguards.',
-        recommendation: 'Maintain quarterly audit logs.'
+        framework: 'Ethiopian Labour Proclamation No. 1156/2019',
+        severity: 'CRITICAL',
+        title: 'Article 88(2-3) - Insufficient Maternity Leave',
+        description: 'Maternity leave of 60 days is below mandatory 120 consecutive days entitlement.',
+        recommendation: 'Grant 120 consecutive days paid maternity leave (30 prenatal + 90 postnatal).'
+      },
+      {
+        framework: 'Ethiopian Labour Proclamation No. 1156/2019',
+        severity: 'CRITICAL',
+        title: 'Article 61(1) - Excessive Daily Working Hours',
+        description: 'Daily working hours (9 hrs) exceed statutory maximum of 8 hours per day.',
+        recommendation: 'Cap normal daily working hours at 8 hours per day.'
       }
     ]
   },
   {
-    id: 'privacy',
-    filename: 'Global_Privacy_Policy_2026.md',
-    size: '480 KB',
-    type: 'MD',
-    content: `# Global Privacy Policy... We collect IP addresses, device identifiers, and geolocation data. Users in California and the EU may request data export via email to privacy@company.com...`,
-    complianceScore: 97,
-    findings: [
-      {
-        framework: 'CCPA',
-        severity: 'PASS',
-        title: 'Section 1798.100 - Consumer Right to Know',
-        description: 'Explicit data collection notice and opt-out mechanisms provided.',
-        recommendation: 'Verify automated web form endpoint response SLA < 45 days.'
-      },
-      {
-        framework: 'GDPR',
-        severity: 'WARNING',
-        title: 'Article 13 - Right to Data Portability',
-        description: 'Manual email request mechanism may bottleneck high-volume DSAR requests.',
-        recommendation: 'Implement automated self-service data export portal.'
-      }
-    ]
-  },
-  {
-    id: 'pci',
-    filename: 'Payment_Gateway_Architecture_SOP.docx',
-    size: '3.2 MB',
+    id: 'eth_tech_contract',
+    filename: 'Addis_Tech_Senior_Developer_Agreement.docx',
+    size: '850 KB',
     type: 'DOCX',
-    content: `PAYMENT INFRASTRUCTURE REGULATORY SOP... Primary cardholder account numbers (PAN) are logged in debug trace buffers during gateway timeout fallbacks...`,
-    complianceScore: 78,
+    content: `ADDIS ABABA SOFTWARE INDUSTRY EMPLOYMENT CONTRACT
+
+Section 1. Terms of Service & Probation
+The trial probation period shall be 60 working days.
+
+Section 2. Daily Hours
+Working hours are 8 hours per day from Monday to Friday (40 hours per week).
+
+Section 3. Annual & Sick Leave
+Employee receives 16 working days of paid annual leave for the first year of service. Sick leave is granted up to 6 months per Article 85.
+
+Section 4. Sexual Harassment & Non-Discrimination
+Company maintains a zero-tolerance policy against sexual harassment and discrimination based on gender, religion, or HIV status per Article 14.`,
+    complianceScore: 100,
     findings: [
       {
-        framework: 'PCI-DSS',
-        severity: 'CRITICAL',
-        title: 'Requirement 3.3 - PAN Masking and Storage',
-        description: 'Plaintext Primary Account Number (PAN) logging detected in debug trace fallback buffers.',
-        recommendation: 'Implement immediate regex masking filter for credit card patterns in system loggers.'
-      },
-      {
-        framework: 'SOX',
-        severity: 'WARNING',
-        title: 'Section 404 - Internal Control Assessment',
-        description: 'Trace buffer access lacks multi-party audit logging.',
-        recommendation: 'Restrict trace logs to L3 security engineers with mandatory audit trailing.'
+        framework: 'Ethiopian Labour Proclamation No. 1156/2019',
+        severity: 'PASS',
+        title: 'Full Proclamation No. 1156/2019 Compliance',
+        description: 'All statutory clauses (Probation, Working Hours, Annual Leave, Sick Leave, Harassment Protections) fully comply with Ethiopian Labour Law.',
+        recommendation: 'Maintain compliance records and annual policy review.'
       }
     ]
   }

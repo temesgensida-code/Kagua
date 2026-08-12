@@ -16,14 +16,14 @@
 
   // Raw text extracted or passed from file sample
   let rawText = $derived(
-    report?.raw_text || file.content || `EMPLOYMENT CONTRACT UNDER ETHIOPIAN LABOUR LAW\n\n1. PROBATION PERIOD\nThe employee shall be subject to a probation period of 90 working days starting from date of commencement.\n\n2. WORKING HOURS & OVERTIME\nNormal working hours shall be 9 hours per day (45 hours per week). Overtime work may be requested up to 3 hours per day.\n\n3. HARASSMENT PROTECTION & DISCRIMINATION\nCompany maintains employment policies in accordance with Ethiopian Labour Proclamation No. 1156/2019.`
+    report?.raw_text || file.content || ''
   );
 
   let activeFrameworks = $derived(frameworks.filter(f => f.active));
 
   // Compute compliance score based on critical (-25) and warning (-10) violations
   let score = $derived.by(() => {
-    if (!report) return 50;
+    if (!report) return 100;
     const penalty = (report.critical_count * 25) + (report.warning_count * 10);
     return Math.max(0, 100 - penalty);
   });
@@ -33,34 +33,7 @@
   );
 
   let violations = $derived<MappedViolation[]>(
-    report?.violations || [
-      {
-        domain: 'ethiopian_labour_proclamation',
-        rule: 'Ethiopian Labour Proclamation No. 1156/2019 - Article 11(3)',
-        title: 'Excessive Probation Period',
-        severity: 'critical',
-        description: 'Specified probation period of 90 working days exceeds the statutory limit of 60 working days under Article 11(3).',
-        recommendation: 'Reduce probation period to a maximum of 60 working days as mandated by Article 11(3).',
-        snippet: 'The employee shall be subject to a probation period of 90 working days starting from date of commencement.',
-        start_char: 45,
-        end_char: 160,
-        article_citation: 'Ethiopian Labour Proclamation No. 1156/2019 - Article 11(3)',
-        statutory_text: 'Article 11(3): The period of probation shall be fixed by mutual agreement of the parties; provided, however, that it shall not exceed 60 (sixty) working days.'
-      },
-      {
-        domain: 'ethiopian_labour_proclamation',
-        rule: 'Ethiopian Labour Proclamation No. 1156/2019 - Article 61(1)',
-        title: 'Excessive Daily Working Hours',
-        severity: 'critical',
-        description: 'Daily working hours (9 hours) exceed the statutory maximum limit of 8 hours per day.',
-        recommendation: 'Cap normal daily working hours at 8 hours per day as mandated by Article 61(1).',
-        snippet: 'Normal working hours shall be 9 hours per day (45 hours per week).',
-        start_char: 195,
-        end_char: 260,
-        article_citation: 'Ethiopian Labour Proclamation No. 1156/2019 - Article 61(1)',
-        statutory_text: 'Article 61(1): Normal hours of work shall not exceed 8 hours a day or 48 hours a week.'
-      }
-    ]
+    report?.violations || []
   );
 
   let isDownloadingPdf = $state(false);

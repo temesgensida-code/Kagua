@@ -22,6 +22,9 @@
     const sizeMB = (fileData.size / (1024 * 1024)).toFixed(2) + ' MB';
     const ext = filename.split('.').pop()?.toUpperCase() || 'DOC';
 
+    // Clear any previous analysis report state
+    report = undefined;
+
     selectedFile = {
       name: filename,
       size: sizeMB,
@@ -46,6 +49,8 @@
     } catch (err: any) {
       console.error('Backend analysis error:', err);
       currentStageMessage = `ERROR: ${err.message}`;
+      alert(`Document analysis failed: ${err.message}`);
+      handleReset();
     } finally {
       setTimeout(() => {
         isScanning = false;

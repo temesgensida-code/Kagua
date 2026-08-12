@@ -38,6 +38,7 @@
     if (input.files && input.files.length > 0) {
       const file = input.files[0];
       onFileSelected(file, file.name);
+      input.value = '';
     }
   }
 

@@ -75,7 +75,7 @@ pub struct ReasonerResponse {
     pub violations: Vec<PrologViolation>,
 }
 
-/// Mapped violation with character offset slice snippet in the original text
+/// Mapped violation with character offset slice snippet in the original text & statutory citations
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MappedViolation {
     pub domain: String,
@@ -87,6 +87,8 @@ pub struct MappedViolation {
     pub snippet: Option<String>,
     pub start_char: Option<usize>,
     pub end_char: Option<usize>,
+    pub article_citation: Option<String>,
+    pub statutory_text: Option<String>,
 }
 
 /// Final comprehensive analysis report returned by `POST /analyze`

@@ -110,6 +110,7 @@ pub struct AnalysisReport {
     pub fact_provenance: Option<serde_json::Value>,
     pub proclamation_metadata: Option<serde_json::Value>,
     pub matched_articles: Option<serde_json::Value>,
+    pub raw_text: Option<String>,
 }
 
 /// WebSocket Progress Stage Event

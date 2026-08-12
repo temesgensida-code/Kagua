@@ -182,7 +182,7 @@ pub async fn process_analysis_pipeline(
     );
 
     // 5. Zero-copy String Offset Mapping & Statutory Article Citation Mapping
-    let raw_text_secure = SecureString::new(parser_response.raw_text);
+    let raw_text_secure = SecureString::new(parser_response.raw_text.clone());
     let mapped_violations = map_violations_to_offsets(
         raw_text_secure.as_str(),
         &reasoner_response.violations,
@@ -226,6 +226,7 @@ pub async fn process_analysis_pipeline(
         fact_provenance: parser_response.fact_provenance,
         proclamation_metadata: parser_response.proclamation_metadata,
         matched_articles: parser_response.retrieved_chunks,
+        raw_text: Some(parser_response.raw_text),
     };
 
     Ok(report)

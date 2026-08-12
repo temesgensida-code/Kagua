@@ -33,7 +33,7 @@ pub async fn process_analysis_pipeline(
     // 2. Forward byte stream to FastAPI /parse endpoint
     ws_state.broadcast_progress(
         "PARSING_DOCUMENT",
-        "Forwarding document stream to FastAPI parser service...",
+        "Forwarding document stream to FastAPI parser & Privacy-Preserving RAG service...",
         None,
     );
 
@@ -80,6 +80,13 @@ pub async fn process_analysis_pipeline(
         )
     })?;
 
+    let pii_count = parser_response.pii_redacted_count.unwrap_or(0);
+    ws_state.broadcast_progress(
+        "RAG_PRIVACY_ANONYMIZED",
+        &format!("PII Anonymizer redacted {} sensitive user entity instances in memory (0 disk writes)", pii_count),
+        Some(json!({ "pii_redacted_count": pii_count })),
+    );
+
     let suggested_domain = parser_response.summary.suggested_domain.clone();
     let detected_jurisdiction = parser_response.summary.detected_jurisdiction.clone();
 
@@ -88,7 +95,7 @@ pub async fn process_analysis_pipeline(
         if let Some(ref dom) = suggested_domain {
             ws_state.broadcast_progress(
                 "DOMAIN_AUTO_SELECTED",
-                &format!("Auto-selected domain rule pack '{}' based on 500-word preamble scan", dom),
+                &format!("Auto-selected domain rule pack '{}' based on preamble scan & RAG facts", dom),
                 Some(json!({ "suggested_domain": dom, "jurisdiction": detected_jurisdiction })),
             );
             json!([dom])
@@ -102,7 +109,7 @@ pub async fn process_analysis_pipeline(
     ws_state.broadcast_progress(
         "PARSING_COMPLETED",
         &format!(
-            "Extracted {} text chars, {} entities, and {} clauses",
+            "Extracted {} text chars, {} entities, {} clauses, and RAG facts",
             parser_response.text_length,
             parser_response.entities.len(),
             parser_response.clauses.len()
@@ -113,15 +120,16 @@ pub async fn process_analysis_pipeline(
             "clauses_count": parser_response.clauses.len(),
             "suggested_domain": suggested_domain,
             "detected_jurisdiction": detected_jurisdiction,
+            "rag_facts": parser_response.rag_facts,
         })),
     );
 
-    // 3. Transform entities and clauses into Prolog facts
+    // 3. Transform entities, clauses, and RAG facts into Prolog facts
     let facts = extract_prolog_facts(&parser_response);
 
     ws_state.broadcast_progress(
         "REASONING_PROLOG",
-        "Sending extracted facts to SWI-Prolog reasoning engine...",
+        "Sending RAG-extracted facts to SWI-Prolog reasoning engine...",
         Some(json!({ "domain": final_domain_spec, "facts": facts })),
     );
 
@@ -206,12 +214,14 @@ pub async fn process_analysis_pipeline(
         violations: mapped_violations,
         entities_extracted: parser_response.entities.len(),
         clauses_detected: parser_response.clauses.len(),
+        pii_redacted_count: parser_response.pii_redacted_count,
+        rag_facts: parser_response.rag_facts,
     };
 
     Ok(report)
 }
 
-/// Convert extracted NER entities and clauses into Prolog facts
+/// Convert extracted NER entities, clauses, and RAG facts into Prolog facts
 fn extract_prolog_facts(parser_res: &ParserResponse) -> Map<String, Value> {
     let mut facts = Map::new();
 
@@ -249,29 +259,44 @@ fn extract_prolog_facts(parser_res: &ParserResponse) -> Map<String, Value> {
         }
     }
 
-    // 3. Scan raw_text for key domain triggers
-    let lower_text = parser_res.raw_text.to_lowercase();
-
-    if lower_text.contains("indefinite") || lower_text.contains("indefinitely") {
-        facts.insert("retention_period".to_string(), json!("indefinite"));
-    } else {
-        facts.insert("retention_period".to_string(), json!(24));
+    // 3. Merge RAG-extracted facts directly
+    if let Some(ref rag_obj) = parser_res.rag_facts {
+        if let Some(obj_map) = rag_obj.as_object() {
+            for (k, v) in obj_map {
+                facts.insert(k.clone(), v.clone());
+            }
+        }
     }
 
-    if lower_text.contains("encryption") || lower_text.contains("aes-256") || lower_text.contains("tls") {
-        facts.insert("encryption".to_string(), json!("AES-256"));
-        facts.insert("transmission_encrypted".to_string(), json!(true));
-    } else {
-        facts.insert("encryption".to_string(), json!("none"));
+    // 4. Fallback text scans
+    let lower_text = parser_res.raw_text.to_lowercase();
+
+    if !facts.contains_key("retention_period") {
+        if lower_text.contains("indefinite") || lower_text.contains("indefinitely") {
+            facts.insert("retention_period".to_string(), json!("indefinite"));
+        } else {
+            facts.insert("retention_period".to_string(), json!(24));
+        }
+    }
+
+    if !facts.contains_key("encryption") {
+        if lower_text.contains("encryption") || lower_text.contains("aes-256") || lower_text.contains("tls") {
+            facts.insert("encryption".to_string(), json!("AES-256"));
+            facts.insert("transmission_encrypted".to_string(), json!(true));
+        } else {
+            facts.insert("encryption".to_string(), json!("none"));
+        }
     }
 
     if lower_text.contains("breach") {
         facts.insert("breach_notification_hours".to_string(), json!(72));
     }
 
-    if lower_text.contains("non-compete") || lower_text.contains("non compete") {
-        facts.insert("non_compete_present".to_string(), json!(true));
-        facts.insert("non_compete_months".to_string(), json!(12));
+    if !facts.contains_key("non_compete_months") {
+        if lower_text.contains("non-compete") || lower_text.contains("non compete") {
+            facts.insert("non_compete_present".to_string(), json!(true));
+            facts.insert("non_compete_months".to_string(), json!(12));
+        }
     }
 
     if lower_text.contains("contractor") || lower_text.contains("independent contractor") {

@@ -41,6 +41,9 @@ pub struct ParserResponse {
     pub entities: Vec<EntitySpan>,
     pub clauses: Vec<ClauseSpan>,
     pub summary: ParseSummary,
+    pub rag_facts: Option<serde_json::Value>,
+    pub pii_redacted_count: Option<usize>,
+    pub retrieved_chunks: Option<serde_json::Value>,
 }
 
 /// Request sent to SWI-Prolog `/reason` endpoint
@@ -98,6 +101,8 @@ pub struct AnalysisReport {
     pub violations: Vec<MappedViolation>,
     pub entities_extracted: usize,
     pub clauses_detected: usize,
+    pub pii_redacted_count: Option<usize>,
+    pub rag_facts: Option<serde_json::Value>,
 }
 
 /// WebSocket Progress Stage Event

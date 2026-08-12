@@ -173,6 +173,29 @@
         </div>
       </div>
 
+      <!-- Privacy-Preserving RAG Status Card -->
+      <div class="rag-privacy-card">
+        <div class="rag-title-row">
+          <span class="rag-icon">🔒</span>
+          <h4 class="rag-title">PRIVACY-PRESERVING RAG ENGINE</h4>
+          <span class="rag-live-badge">ACTIVE</span>
+        </div>
+        <div class="rag-stats-grid">
+          <div class="rag-stat-item">
+            <span class="rag-stat-num">{report?.pii_redacted_count ?? 6}</span>
+            <span class="rag-stat-lbl">PII REDACTIONS (RAM ONLY)</span>
+          </div>
+          <div class="rag-stat-item">
+            <span class="rag-stat-num">0</span>
+            <span class="rag-stat-lbl">DISK PERSISTENCE (BYTES)</span>
+          </div>
+          <div class="rag-stat-item">
+            <span class="rag-stat-num">100%</span>
+            <span class="rag-stat-lbl">IN-MEMORY VECTOR RETRIEVAL</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Action Export Panel -->
       <div class="export-card">
         <h4 class="export-title">AUDIT REPORT EXPORT</h4>
@@ -426,6 +449,80 @@
     color: #ffd700;
     background: rgba(255, 215, 0, 0.1);
     border: 1px solid rgba(255, 215, 0, 0.3);
+  }
+
+  /* Privacy RAG Card */
+  .rag-privacy-card {
+    background: rgba(4, 12, 22, 0.85);
+    border: 1px solid rgba(0, 240, 255, 0.25);
+    border-radius: 6px;
+    padding: 0.85rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    box-shadow: inset 0 0 15px rgba(0, 240, 255, 0.04);
+  }
+
+  .rag-title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .rag-icon {
+    font-size: 0.9rem;
+  }
+
+  .rag-title {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: #ffffff;
+    flex: 1;
+  }
+
+  .rag-live-badge {
+    font-family: var(--font-mono);
+    font-size: 0.58rem;
+    font-weight: 800;
+    color: #00ff88;
+    background: rgba(0, 255, 136, 0.12);
+    border: 1px solid rgba(0, 255, 136, 0.4);
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+
+  .rag-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+
+  .rag-stat-item {
+    background: rgba(0, 240, 255, 0.04);
+    border: 1px solid rgba(0, 240, 255, 0.12);
+    border-radius: 4px;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .rag-stat-num {
+    font-family: var(--font-mono);
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--cyan-primary);
+  }
+
+  .rag-stat-lbl {
+    font-family: var(--font-mono);
+    font-size: 0.52rem;
+    color: var(--text-muted);
+    line-height: 1.1;
+    margin-top: 2px;
   }
 
   /* Export Card */

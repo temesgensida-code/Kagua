@@ -22,6 +22,8 @@ export interface AnalysisReport {
   violations: MappedViolation[];
   entities_extracted: number;
   clauses_detected: number;
+  pii_redacted_count?: number;
+  rag_facts?: any;
   raw_text?: string;
 }
 

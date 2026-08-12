@@ -15,18 +15,18 @@
   <!-- Tag line with vertical pink line accent -->
   <div class="tag-row">
     <span class="pink-line"></span>
-    <span class="tag-text">DOCUMENT INTELLIGENCE</span>
+    <span class="tag-text">ETHIOPIAN LABOUR COMPLIANCE ENGINE</span>
   </div>
 
   <!-- Main Headline -->
   <h1 class="main-title">
-    <span class="text-compliance">COMPLIANCE</span>
-    <span class="text-check">CHECK</span>
+    <span class="text-compliance">PROCLAMATION 1156/2019</span>
+    <span class="text-check">AUDIT & REASONING</span>
   </h1>
 
   <!-- Subtitle / Description -->
   <p class="description">
-    Upload any policy, contract, or procedure document. Instant analysis against six regulatory frameworks — GDPR, HIPAA, SOX, ISO 27001, CCPA, PCI-DSS.
+    Automated zero-persistence compliance engine for employment contracts under Federal Democratic Republic of Ethiopia Labour Proclamation No. 1156/2019. Powered by spaCy NER, In-Memory RAG, and SWI-Prolog legal reasoning.
   </p>
 
   <!-- Active Frameworks Badges -->

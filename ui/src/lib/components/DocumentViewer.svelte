@@ -73,12 +73,22 @@
     return segments;
   });
 
+  let pulseIndex = $state<number | null>(null);
+  let pulseTimer: any = null;
+
   $effect(() => {
     if (activeViolationIndex !== null && viewerContainer) {
       const targetEl = viewerContainer.querySelector(`[data-violation-idx="${activeViolationIndex}"]`);
       if (targetEl) {
         targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
+
+      // Trigger temporary 2.5s pulse highlight
+      pulseIndex = activeViolationIndex;
+      if (pulseTimer) clearTimeout(pulseTimer);
+      pulseTimer = setTimeout(() => {
+        pulseIndex = null;
+      }, 2500);
     }
   });
 </script>
@@ -111,6 +121,7 @@
           <mark
             class="violation-mark severity-{seg.violation.severity}"
             class:active={activeViolationIndex === seg.index}
+            class:pulse-highlight={pulseIndex === seg.index}
             data-violation-idx={seg.index}
             onclick={() => onSelectViolation(seg.index)}
             onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && onSelectViolation(seg.index)}
@@ -266,6 +277,24 @@
     box-shadow: 0 0 16px var(--cyan-primary);
     background: rgba(0, 240, 255, 0.25);
     color: #ffffff;
+  }
+
+  .violation-mark.pulse-highlight {
+    animation: pulseGlow 0.8s ease-in-out infinite alternate;
+    outline: 3px solid var(--cyan-primary);
+    box-shadow: 0 0 25px var(--cyan-primary), 0 0 45px rgba(0, 240, 255, 0.7);
+    z-index: 10;
+  }
+
+  @keyframes pulseGlow {
+    0% {
+      transform: scale(1);
+      box-shadow: 0 0 10px var(--cyan-primary);
+    }
+    100% {
+      transform: scale(1.04);
+      box-shadow: 0 0 30px var(--cyan-primary), 0 0 50px rgba(0, 240, 255, 0.8);
+    }
   }
 
   .mark-label {

@@ -304,6 +304,21 @@ fn extract_prolog_facts(parser_res: &ParserResponse) -> Map<String, Value> {
     facts
 }
 
+/// Safely extract a substring by Unicode character offsets (not byte offsets).
+/// Never panics on multi-byte UTF-8 character boundaries (e.g., bullet points, smart quotes, Amharic text).
+fn safe_char_slice(text: &str, start_char: usize, end_char: usize) -> String {
+    if text.is_empty() {
+        return String::new();
+    }
+    let char_count = text.chars().count();
+    let start = start_char.min(char_count);
+    let end = end_char.min(char_count);
+    if start >= end {
+        return String::new();
+    }
+    text.chars().skip(start).take(end - start).collect()
+}
+
 /// Zero-copy string offset mapping of Prolog violations to exact character slices & statutory citations
 fn map_violations_to_offsets(
     raw_text: &str,
@@ -339,10 +354,9 @@ fn map_violations_to_offsets(
             if matches_clause {
                 start_char = Some(clause.start_char);
                 end_char = Some(clause.end_char);
-                // Zero-copy slice validation from raw_text
-                if clause.start_char <= raw_text.len() && clause.end_char <= raw_text.len() {
-                    let slice = &raw_text[clause.start_char..clause.end_char];
-                    snippet_str = Some(slice.to_string());
+                let slice = safe_char_slice(raw_text, clause.start_char, clause.end_char);
+                if !slice.is_empty() {
+                    snippet_str = Some(slice);
                 } else {
                     snippet_str = Some(clause.text.clone());
                 }
@@ -359,13 +373,13 @@ fn map_violations_to_offsets(
             }
         }
 
-        // Fallback: zero-copy slice of raw_text prefix
+        // Fallback: safe slice of raw_text prefix
         if start_char.is_none() && !raw_text.is_empty() {
-            let max_end = raw_text.len().min(200);
+            let slice = safe_char_slice(raw_text, 0, 200);
+            let char_count = raw_text.chars().count();
             start_char = Some(0);
-            end_char = Some(max_end);
-            let slice = &raw_text[0..max_end];
-            snippet_str = Some(slice.to_string());
+            end_char = Some(200.min(char_count));
+            snippet_str = Some(slice);
         }
 
         // Attach statutory article citation & exact Proclamation No. 1156/2019 statutory text

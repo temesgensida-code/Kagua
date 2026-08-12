@@ -103,6 +103,7 @@ async def parse_document(file: UploadFile = File(...)):
         "clauses": ner_result["clauses"],
         "summary": ner_result["summary"],
         "rag_facts": rag_result["prolog_facts"],
+        "fact_provenance": rag_result.get("fact_provenance", {}),
         "pii_redacted_count": rag_result["pii_redacted_count"],
         "retrieved_chunks": rag_result["retrieved_chunks"],
         "proclamation_metadata": rag_result["proclamation_metadata"]

@@ -140,27 +140,59 @@ class InMemoryVectorIndex:
         return vec
 
     def _build_from_text(self, text: str):
+        """Build vector index from text using paragraph splitting with sentence-level fallback.
+        
+        Contracts with single-spaced text produce very few large paragraphs when splitting on \\n\\n.
+        This method falls back to spaCy sentence tokenization grouped into sliding windows of 3
+        sentences, giving the RAG retriever fine-grained chunks to differentiate between clauses.
+        """
         paragraphs = text.split("\n\n")
-        pos = 0
-        for idx, para in enumerate(paragraphs):
-            para_str = para.strip()
-            start_offset = text.find(para, pos)
-            if start_offset == -1:
-                start_offset = pos
-            end_offset = start_offset + len(para)
-            pos = end_offset
+        valid_paragraphs = [p.strip() for p in paragraphs if len(p.strip()) >= 15]
 
-            if len(para_str) < 15:
-                continue
+        if len(valid_paragraphs) > 3:
+            # Paragraph-level chunking (document has clear paragraph separation)
+            pos = 0
+            for idx, para in enumerate(paragraphs):
+                para_str = para.strip()
+                start_offset = text.find(para, pos)
+                if start_offset == -1:
+                    start_offset = pos
+                end_offset = start_offset + len(para)
+                pos = end_offset
 
-            vec = self._text_to_vector(para_str)
-            self.chunks.append({
-                "chunk_id": idx,
-                "text": para_str,
-                "start_char": start_offset,
-                "end_char": end_offset,
-            })
-            self.vectors.append(vec)
+                if len(para_str) < 15:
+                    continue
+
+                vec = self._text_to_vector(para_str)
+                self.chunks.append({
+                    "chunk_id": idx,
+                    "text": para_str,
+                    "start_char": start_offset,
+                    "end_char": end_offset,
+                })
+                self.vectors.append(vec)
+        else:
+            # Sentence-level chunking fallback (single-spaced or dense text)
+            doc = nlp(text)
+            sentences = list(doc.sents)
+            window_size = 3
+            for idx in range(0, len(sentences), max(1, window_size - 1)):
+                group = sentences[idx:idx + window_size]
+                chunk_text = " ".join(s.text.strip() for s in group)
+                start_offset = group[0].start_char
+                end_offset = group[-1].end_char
+
+                if len(chunk_text.strip()) < 15:
+                    continue
+
+                vec = self._text_to_vector(chunk_text)
+                self.chunks.append({
+                    "chunk_id": idx,
+                    "text": chunk_text.strip(),
+                    "start_char": start_offset,
+                    "end_char": end_offset,
+                })
+                self.vectors.append(vec)
 
     def query(self, query_str: str, top_k: int = 3) -> List[Dict[str, Any]]:
         if not self.chunks or len(self.vectors) == 0:
@@ -275,6 +307,31 @@ ETHIOPIAN_LABOUR_QUERIES = {
     "written_contract": "written contract element 15 days letter Article 4 6 7"
 }
 
+def extract_number_near_keyword(
+    text: str, keywords: List[str], unit_pattern: str, max_dist: int = 60
+) -> Tuple[int | None, str | None]:
+    """
+    Extract a number that appears within `max_dist` characters of specified keywords inside a sentence.
+    Returns (extracted_number, sentence_snippet).
+    """
+    doc = nlp(text)
+    for sent in doc.sents:
+        sent_text = sent.text.strip()
+        sent_lower = sent_text.lower()
+        if any(kw.lower() in sent_lower for kw in keywords):
+            for kw in keywords:
+                kw_lower = kw.lower()
+                kw_idx = sent_lower.find(kw_lower)
+                if kw_idx != -1:
+                    win_start = max(0, kw_idx - max_dist)
+                    win_end = min(len(sent_text), kw_idx + len(kw) + max_dist)
+                    window = sent_text[win_start:win_end]
+                    match = re.search(rf"(?i)\b(\d+)\s*{unit_pattern}", window)
+                    if match:
+                        return int(match.group(1)), sent_text
+    return None, None
+
+
 def extract_rag_compliance_facts(raw_text: str) -> Dict[str, Any]:
     """
     Ethiopian Labour Proclamation No. 1156/2019 RAG Pipeline:
@@ -282,12 +339,12 @@ def extract_rag_compliance_facts(raw_text: str) -> Dict[str, Any]:
     2. Build in-memory vector index over uploaded document.
     3. Query document using Ethiopian Labour Law queries.
     4. Retrieve corresponding reference Articles from parser/jsons/labour_proclamation_1156_2019.json.
-    5. Extract structured compliance facts for SWI-Prolog reasoning against Proclamation 1156/2019.
+    5. Extract structured compliance facts for SWI-Prolog reasoning against Proclamation 1156/2019 with provenance.
     """
     # 1. De-identify sensitive text
     sanitized_text, pii_map = anonymize_text(raw_text)
 
-    # 2. Build local vector index over uploaded document in RAM
+    # 2. Build local vector index over uploaded document in RAM (with sentence-level fallback)
     doc_index = InMemoryVectorIndex(raw_text=sanitized_text)
 
     # 3. Retrieve domain contexts from contract + Ethiopian Labour Proclamation Corpus
@@ -298,83 +355,151 @@ def extract_rag_compliance_facts(raw_text: str) -> Dict[str, Any]:
         retrieved_doc_contexts[key] = doc_index.query(q_str, top_k=2)
         retrieved_proclamation_articles[key] = proclamation_corpus.search_proclamation(q_str, top_k=1)
 
-    # 4. Synthesize Prolog Facts matching Ethiopian Labour Proclamation standards
+    # 4. Synthesize Prolog Facts matching Ethiopian Labour Proclamation standards + Fact Provenance
     prolog_facts: Dict[str, Any] = {
         "domain": "ethiopian_labour_proclamation",
         "governing_law": "Ethiopian Labour Proclamation No. 1156/2019",
         "jurisdiction": "Ethiopia"
     }
+    fact_provenance: Dict[str, Any] = {}
 
     # Extract Probation Period (Legal max: 60 working days per Article 11(3))
     prob_chunks = retrieved_doc_contexts.get("probation", [])
     for c in prob_chunks:
-        m_days = re.search(r"(?i)\b(\d+)\s*(?:working\s+)?days?\b", c["text"])
-        m_months = re.search(r"(?i)\b(\d+)\s*months?\b", c["text"])
-        if m_days:
-            prolog_facts["probation_days"] = int(m_days.group(1))
+        val_days, snippet = extract_number_near_keyword(c["text"], ["probation", "trial period", "testing"], r"(?:working\s+)?days?")
+        val_months, snippet_m = extract_number_near_keyword(c["text"], ["probation", "trial period", "testing"], r"months?")
+        if val_days is not None:
+            prolog_facts["probation_days"] = val_days
+            fact_provenance["probation_days"] = {
+                "value": val_days,
+                "source_text": snippet[:200] if snippet else c["text"][:200],
+                "article_reference": "Article 11(3)"
+            }
             break
-        elif m_months:
-            prolog_facts["probation_days"] = int(m_months.group(1)) * 30
+        elif val_months is not None:
+            prolog_facts["probation_days"] = val_months * 30
+            fact_provenance["probation_days"] = {
+                "value": val_months * 30,
+                "source_text": snippet_m[:200] if snippet_m else c["text"][:200],
+                "article_reference": "Article 11(3)"
+            }
             break
 
     # Extract Working Hours (Legal max: 8 hrs/day, 48 hrs/week per Article 61)
     wh_chunks = retrieved_doc_contexts.get("working_hours", [])
     for c in wh_chunks:
-        m_day = re.search(r"(?i)\b(\d+)\s*(?:hours?|hrs?)\s*(?:per|a|\/)\s*day\b", c["text"])
-        m_week = re.search(r"(?i)\b(\d+)\s*(?:hours?|hrs?)\s*(?:per|a|\/)\s*week\b", c["text"])
-        if m_day:
-            prolog_facts["working_hours_per_day"] = int(m_day.group(1))
-        if m_week:
-            prolog_facts["weekly_working_hours"] = int(m_week.group(1))
+        val_day, snip_d = extract_number_near_keyword(c["text"], ["hour", "hrs", "working", "daily"], r"(?:hours?|hrs?)\s*(?:per|a|\/)?\s*day")
+        val_week, snip_w = extract_number_near_keyword(c["text"], ["hour", "hrs", "working", "weekly"], r"(?:hours?|hrs?)\s*(?:per|a|\/)?\s*week")
+        if val_day is not None:
+            prolog_facts["working_hours_per_day"] = val_day
+            fact_provenance["working_hours_per_day"] = {
+                "value": val_day,
+                "source_text": snip_d[:200] if snip_d else c["text"][:200],
+                "article_reference": "Article 61(1)"
+            }
+        if val_week is not None:
+            prolog_facts["weekly_working_hours"] = val_week
+            fact_provenance["weekly_working_hours"] = {
+                "value": val_week,
+                "source_text": snip_w[:200] if snip_w else c["text"][:200],
+                "article_reference": "Article 61(1)"
+            }
+
+    # Extract Overtime Hours (Legal max: 2 hrs/day per Article 67)
+    ot_chunks = retrieved_doc_contexts.get("overtime", [])
+    for c in ot_chunks:
+        val_ot, snip_ot = extract_number_near_keyword(c["text"], ["overtime", "extra hours"], r"(?:hours?|hrs?)\s*(?:per|a|\/)?\s*day")
+        if val_ot is not None:
+            prolog_facts["overtime_hours_per_day"] = val_ot
+            fact_provenance["overtime_hours_per_day"] = {
+                "value": val_ot,
+                "source_text": snip_ot[:200] if snip_ot else c["text"][:200],
+                "article_reference": "Article 67"
+            }
+            break
 
     # Extract Termination Notice Period (Articles 35 & 44)
     notice_chunks = retrieved_doc_contexts.get("termination_notice", [])
     for c in notice_chunks:
-        m_days = re.search(r"(?i)\b(\d+)\s*days?\s+(?:written\s+)?notice\b", c["text"]) or re.search(r"(?i)notice[^\.\n]*?\b(\d+)\s*days?\b", c["text"])
-        m_months = re.search(r"(?i)\b(\d+)\s*months?\s+(?:written\s+)?notice\b", c["text"])
-        if m_days:
-            prolog_facts["notice_period_days"] = int(m_days.group(1))
+        val_days, snip_d = extract_number_near_keyword(c["text"], ["notice", "termination", "prior notice"], r"days?")
+        val_months, snip_m = extract_number_near_keyword(c["text"], ["notice", "termination", "prior notice"], r"months?")
+        if val_days is not None:
+            prolog_facts["notice_period_days"] = val_days
+            fact_provenance["notice_period_days"] = {
+                "value": val_days,
+                "source_text": snip_d[:200] if snip_d else c["text"][:200],
+                "article_reference": "Articles 35 & 44"
+            }
             break
-        elif m_months:
-            prolog_facts["notice_period_days"] = int(m_months.group(1)) * 30
+        elif val_months is not None:
+            prolog_facts["notice_period_days"] = val_months * 30
+            fact_provenance["notice_period_days"] = {
+                "value": val_months * 30,
+                "source_text": snip_m[:200] if snip_m else c["text"][:200],
+                "article_reference": "Articles 35 & 44"
+            }
             break
 
     # Extract Annual Leave (Legal min: 16 working days per Article 77(1))
     al_chunks = retrieved_doc_contexts.get("annual_leave", [])
     for c in al_chunks:
-        m_days = re.search(r"(?i)annual\s+leave[^\.\n]*?\b(\d+)\s*(?:working\s+)?days?\b", c["text"]) or re.search(r"(?i)\b(\d+)\s*(?:working\s+)?days?\s+(?:of\s+)?annual\s+leave\b", c["text"])
-        if m_days:
-            prolog_facts["annual_leave_days"] = int(m_days.group(1))
+        val_days, snip_al = extract_number_near_keyword(c["text"], ["annual leave", "vacation", "paid leave"], r"(?:working\s+)?days?")
+        if val_days is not None:
+            prolog_facts["annual_leave_days"] = val_days
+            fact_provenance["annual_leave_days"] = {
+                "value": val_days,
+                "source_text": snip_al[:200] if snip_al else c["text"][:200],
+                "article_reference": "Article 77(1)"
+            }
             break
 
     # Extract Maternity Leave (Legal min: 120 consecutive days per Article 88(2-3))
     ml_chunks = retrieved_doc_contexts.get("maternity_leave", [])
     for c in ml_chunks:
-        m_days = re.search(r"(?i)maternity\s+leave[^\.\n]*?\b(\d+)\s*(?:consecutive\s+)?days?\b", c["text"]) or re.search(r"(?i)\b(\d+)\s*(?:consecutive\s+)?days?\s+(?:of\s+)?maternity\s+leave\b", c["text"])
-        m_months = re.search(r"(?i)maternity\s+leave[^\.\n]*?\b(\d+)\s*months?\b", c["text"])
-        if m_days:
-            prolog_facts["maternity_leave_days"] = int(m_days.group(1))
+        val_days, snip_md = extract_number_near_keyword(c["text"], ["maternity", "pregnancy", "prenatal", "postnatal"], r"(?:consecutive\s+)?days?")
+        val_months, snip_mm = extract_number_near_keyword(c["text"], ["maternity", "pregnancy"], r"months?")
+        if val_days is not None:
+            prolog_facts["maternity_leave_days"] = val_days
+            fact_provenance["maternity_leave_days"] = {
+                "value": val_days,
+                "source_text": snip_md[:200] if snip_md else c["text"][:200],
+                "article_reference": "Article 88(2-3)"
+            }
             break
-        elif m_months:
-            prolog_facts["maternity_leave_days"] = int(m_months.group(1)) * 30
+        elif val_months is not None:
+            prolog_facts["maternity_leave_days"] = val_months * 30
+            fact_provenance["maternity_leave_days"] = {
+                "value": val_months * 30,
+                "source_text": snip_mm[:200] if snip_mm else c["text"][:200],
+                "article_reference": "Article 88(2-3)"
+            }
             break
 
     # Extract Sick Leave (Article 85)
     sl_chunks = retrieved_doc_contexts.get("sick_leave", [])
     for c in sl_chunks:
-        m_months = re.search(r"(?i)sick\s+leave[^\.\n]*?\b(\d+)\s*months?\b", c["text"]) or re.search(r"(?i)\b(\d+)\s*months?\s+(?:of\s+)?sick\s+leave\b", c["text"])
-        if m_months:
-            prolog_facts["sick_leave_months"] = int(m_months.group(1))
+        val_months, snip_sl = extract_number_near_keyword(c["text"], ["sick leave", "medical leave", "incapacity"], r"months?")
+        if val_months is not None:
+            prolog_facts["sick_leave_months"] = val_months
+            fact_provenance["sick_leave_months"] = {
+                "value": val_months,
+                "source_text": snip_sl[:200] if snip_sl else c["text"][:200],
+                "article_reference": "Article 85"
+            }
             break
 
     # Extract Minimum Age (Legal min: 15 years per Article 89(1))
     age_chunks = retrieved_doc_contexts.get("minimum_age", [])
     for c in age_chunks:
-        m_age = re.search(r"(?i)\b(\d{2})\s*(?:years?\s+old|years?\s+of\s+age)\b", c["text"]) or re.search(r"(?i)age[^\.\n]*?\b(\d{2})\b", c["text"])
-        if m_age:
-            prolog_facts["minimum_worker_age"] = int(m_age.group(1))
+        val_age, snip_age = extract_number_near_keyword(c["text"], ["age", "years old", "young worker", "minimum age"], r"(?:years?\s+old|years?\s+of\s+age|years?)")
+        if val_age is not None:
+            prolog_facts["minimum_worker_age"] = val_age
+            fact_provenance["minimum_worker_age"] = {
+                "value": val_age,
+                "source_text": snip_age[:200] if snip_age else c["text"][:200],
+                "article_reference": "Article 89(1)"
+            }
             break
-
 
     # Extract Anti-Discrimination & Sexual Harassment Policies (Article 14)
     pa_chunks = retrieved_doc_contexts.get("prohibited_acts", [])
@@ -382,8 +507,41 @@ def extract_rag_compliance_facts(raw_text: str) -> Dict[str, Any]:
         txt_lower = c["text"].lower()
         if "discrimina" in txt_lower or "equal opportunity" in txt_lower:
             prolog_facts["has_anti_discrimination"] = True
+            fact_provenance["has_anti_discrimination"] = {
+                "value": True,
+                "source_text": c["text"][:200],
+                "article_reference": "Article 14(1)(f)"
+            }
         if "harassment" in txt_lower or "sexual assault" in txt_lower:
             prolog_facts["has_sexual_harassment_policy"] = True
+            fact_provenance["has_sexual_harassment_policy"] = {
+                "value": True,
+                "source_text": c["text"][:200],
+                "article_reference": "Article 14(1)(h)"
+            }
+
+    # Extract Severance Pay & Written Contract Provisions
+    sev_chunks = retrieved_doc_contexts.get("severance_pay", [])
+    for c in sev_chunks:
+        txt_lower = c["text"].lower()
+        if "severance" in txt_lower or "termination compensation" in txt_lower:
+            prolog_facts["has_severance_provision"] = True
+            fact_provenance["has_severance_provision"] = {
+                "value": True,
+                "source_text": c["text"][:200],
+                "article_reference": "Article 39"
+            }
+
+    wc_chunks = retrieved_doc_contexts.get("written_contract", [])
+    for c in wc_chunks:
+        txt_lower = c["text"].lower()
+        if "written" in txt_lower or "letter of employment" in txt_lower or "statement of employment" in txt_lower:
+            prolog_facts["has_written_contract_provision"] = True
+            fact_provenance["has_written_contract_provision"] = {
+                "value": True,
+                "source_text": c["text"][:200],
+                "article_reference": "Article 6"
+            }
 
     # Assemble retrieved document chunks + matched Ethiopian Labour Proclamation Articles
     all_chunks = []
@@ -418,6 +576,7 @@ def extract_rag_compliance_facts(raw_text: str) -> Dict[str, Any]:
         "pii_redacted_count": len(pii_map),
         "sanitized_preview": sanitized_text[:200] + "...",
         "prolog_facts": prolog_facts,
+        "fact_provenance": fact_provenance,
         "retrieved_chunks": all_chunks,
         "proclamation_metadata": proclamation_corpus.metadata
     }

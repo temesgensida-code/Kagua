@@ -16,7 +16,7 @@ pub async fn process_analysis_pipeline(
     filename: String,
     content_type: Option<String>,
     file_bytes: Vec<u8>,
-    domain_spec: Value,
+    _domain_spec: Value,
     ws_state: &WsState,
 ) -> Result<AnalysisReport, (axum::http::StatusCode, String)> {
     let bytes_len = file_bytes.len();
@@ -90,21 +90,18 @@ pub async fn process_analysis_pipeline(
     let suggested_domain = parser_response.summary.suggested_domain.clone();
     let detected_jurisdiction = parser_response.summary.detected_jurisdiction.clone();
 
-    // Determine final domain specification (auto-selection logic)
-    let final_domain_spec = if domain_spec == "auto" || domain_spec == json!("auto") {
-        if let Some(ref dom) = suggested_domain {
-            ws_state.broadcast_progress(
-                "DOMAIN_AUTO_SELECTED",
-                &format!("Auto-selected domain rule pack '{}' based on preamble scan & RAG facts", dom),
-                Some(json!({ "suggested_domain": dom, "jurisdiction": detected_jurisdiction })),
-            );
-            json!([dom])
-        } else {
-            json!("all")
-        }
-    } else {
-        domain_spec.clone()
-    };
+    // Domain is locked to Ethiopian Labour Proclamation No. 1156/2019
+    let final_domain_spec = json!("ethiopian_labour_proclamation");
+
+    ws_state.broadcast_progress(
+        "DOMAIN_SELECTED",
+        "Using Ethiopian Labour Proclamation No. 1156/2019 compliance rule pack",
+        Some(json!({
+            "domain": "ethiopian_labour_proclamation",
+            "governing_law": "Ethiopian Labour Proclamation No. 1156/2019",
+            "jurisdiction": detected_jurisdiction
+        })),
+    );
 
     ws_state.broadcast_progress(
         "PARSING_COMPLETED",
@@ -124,12 +121,21 @@ pub async fn process_analysis_pipeline(
         })),
     );
 
-    // 3. Transform entities, clauses, and RAG facts into Prolog facts
+    // 3. Extract Ethiopian Labour Proclamation facts for Prolog reasoning
     let facts = extract_prolog_facts(&parser_response);
 
     ws_state.broadcast_progress(
+        "FACTS_EXTRACTED",
+        &format!("Extracted {} Ethiopian Labour Law compliance facts from document", facts.len()),
+        Some(json!({
+            "facts": facts,
+            "governing_law": "Ethiopian Labour Proclamation No. 1156/2019"
+        })),
+    );
+
+    ws_state.broadcast_progress(
         "REASONING_PROLOG",
-        "Sending RAG-extracted facts to SWI-Prolog reasoning engine...",
+        "Sending facts to SWI-Prolog reasoning engine for violation checking...",
         Some(json!({ "domain": final_domain_spec, "facts": facts })),
     );
 
@@ -216,50 +222,34 @@ pub async fn process_analysis_pipeline(
         clauses_detected: parser_response.clauses.len(),
         pii_redacted_count: parser_response.pii_redacted_count,
         rag_facts: parser_response.rag_facts,
+        proclamation_metadata: parser_response.proclamation_metadata,
+        matched_articles: parser_response.retrieved_chunks,
     };
 
     Ok(report)
 }
 
-/// Convert extracted NER entities, clauses, and RAG facts into Prolog facts
+/// Convert extracted NER entities, clauses, and RAG facts into Prolog facts.
+/// Scoped exclusively to Ethiopian Labour Proclamation No. 1156/2019.
+/// The RAG engine already produces correctly structured facts — this function
+/// acts as a thin pass-through, only adding jurisdiction from NER if missing.
 fn extract_prolog_facts(parser_res: &ParserResponse) -> Map<String, Value> {
     let mut facts = Map::new();
 
-    // 1. Jurisdictions
+    // 1. Set domain and governing law
+    facts.insert("domain".to_string(), json!("ethiopian_labour_proclamation"));
+    facts.insert("governing_law".to_string(), json!("Ethiopian Labour Proclamation No. 1156/2019"));
+
+    // 2. Jurisdiction from NER detection
     if let Some(ref jurisdiction) = parser_res.summary.detected_jurisdiction {
         facts.insert("jurisdiction".to_string(), json!(jurisdiction));
     } else if let Some(jurisdiction) = parser_res.summary.jurisdictions.first() {
         facts.insert("jurisdiction".to_string(), json!(jurisdiction));
     }
 
-    // 2. Clauses present
-    for clause_type in &parser_res.summary.detected_clause_types {
-        match clause_type.as_str() {
-            "GOVERNING_LAW" => {
-                facts.insert("has_governing_law".to_string(), json!(true));
-            }
-            "CONFIDENTIALITY" => {
-                facts.insert("has_confidentiality".to_string(), json!(true));
-                facts.insert("privacy_notice".to_string(), json!(true));
-            }
-            "TERMINATION" => {
-                facts.insert("has_termination".to_string(), json!(true));
-                facts.insert("notice_period_days".to_string(), json!(30));
-            }
-            "PAYMENT_TERMS" => {
-                facts.insert("has_payment_terms".to_string(), json!(true));
-            }
-            "DATA_PROTECTION" => {
-                facts.insert("has_data_protection".to_string(), json!(true));
-                facts.insert("privacy_notice".to_string(), json!(true));
-                facts.insert("erasure_mechanism".to_string(), json!(true));
-                facts.insert("security_measures_documented".to_string(), json!(true));
-            }
-            _ => {}
-        }
-    }
-
-    // 3. Merge RAG-extracted facts directly
+    // 3. Merge RAG-extracted Ethiopian Labour Proclamation facts directly
+    //    The Python RAG engine (rag_engine.py) already extracts correctly keyed
+    //    facts like probation_days, working_hours_per_day, notice_period_days, etc.
     if let Some(ref rag_obj) = parser_res.rag_facts {
         if let Some(obj_map) = rag_obj.as_object() {
             for (k, v) in obj_map {
@@ -268,50 +258,44 @@ fn extract_prolog_facts(parser_res: &ParserResponse) -> Map<String, Value> {
         }
     }
 
-    // 4. Fallback text scans
-    let lower_text = parser_res.raw_text.to_lowercase();
-
-    if !facts.contains_key("retention_period") {
-        if lower_text.contains("indefinite") || lower_text.contains("indefinitely") {
-            facts.insert("retention_period".to_string(), json!("indefinite"));
-        } else {
-            facts.insert("retention_period".to_string(), json!(24));
+    // 4. Map detected Ethiopian clause types to boolean presence facts
+    for clause_type in &parser_res.summary.detected_clause_types {
+        match clause_type.as_str() {
+            "ETHIOPIAN_PROBATION_PERIOD" => {
+                facts.insert("has_probation_clause".to_string(), json!(true));
+            }
+            "ETHIOPIAN_WORKING_HOURS" => {
+                facts.insert("has_working_hours_clause".to_string(), json!(true));
+            }
+            "ETHIOPIAN_OVERTIME" => {
+                facts.insert("has_overtime_clause".to_string(), json!(true));
+            }
+            "ETHIOPIAN_TERMINATION_NOTICE" => {
+                facts.insert("has_termination_notice_clause".to_string(), json!(true));
+            }
+            "ETHIOPIAN_ANNUAL_LEAVE" => {
+                facts.insert("has_annual_leave_clause".to_string(), json!(true));
+            }
+            "ETHIOPIAN_MATERNITY_LEAVE" => {
+                facts.insert("has_maternity_leave_clause".to_string(), json!(true));
+            }
+            "ETHIOPIAN_SICK_LEAVE" => {
+                facts.insert("has_sick_leave_clause".to_string(), json!(true));
+            }
+            "ETHIOPIAN_SEVERANCE_PAY" => {
+                facts.insert("has_severance_provision".to_string(), json!(true));
+            }
+            "ETHIOPIAN_PROHIBITED_ACTS" => {
+                facts.insert("has_anti_discrimination".to_string(), json!(true));
+            }
+            "ETHIOPIAN_MINIMUM_AGE" => {
+                facts.insert("has_minimum_age_clause".to_string(), json!(true));
+            }
+            "ETHIOPIAN_CONTRACT_FORMATION" => {
+                facts.insert("has_written_contract_provision".to_string(), json!(true));
+            }
+            _ => {}
         }
-    }
-
-    if !facts.contains_key("encryption") {
-        if lower_text.contains("encryption") || lower_text.contains("aes-256") || lower_text.contains("tls") {
-            facts.insert("encryption".to_string(), json!("AES-256"));
-            facts.insert("transmission_encrypted".to_string(), json!(true));
-        } else {
-            facts.insert("encryption".to_string(), json!("none"));
-        }
-    }
-
-    if lower_text.contains("breach") {
-        facts.insert("breach_notification_hours".to_string(), json!(72));
-    }
-
-    if !facts.contains_key("non_compete_months") {
-        if lower_text.contains("non-compete") || lower_text.contains("non compete") {
-            facts.insert("non_compete_present".to_string(), json!(true));
-            facts.insert("non_compete_months".to_string(), json!(12));
-        }
-    }
-
-    if lower_text.contains("contractor") || lower_text.contains("independent contractor") {
-        facts.insert("worker_type".to_string(), json!("contractor"));
-    }
-
-    if lower_text.contains("phi") || lower_text.contains("health information") || lower_text.contains("patient") {
-        facts.insert("contains_phi".to_string(), json!(true));
-        facts.insert("access_control".to_string(), json!("rbac"));
-        facts.insert("safeguards_documented".to_string(), json!(true));
-    }
-
-    if lower_text.contains("credit card") || lower_text.contains("pan") || lower_text.contains("cardholder") {
-        facts.insert("pan_storage".to_string(), json!("masked"));
-        facts.insert("cardholder_data_encrypted".to_string(), json!(true));
     }
 
     facts
@@ -331,12 +315,20 @@ fn map_violations_to_offsets(
         let mut end_char = None;
         let mut snippet_str: Option<String> = None;
 
-        // Match against detected clause spans via zero-copy string slice
+        // Match violations to Ethiopian Labour Proclamation clause spans
         for clause in clauses {
             let matches_clause = match v.rule.as_str() {
-                r if r.contains("GDPR") => clause.clause_type == "DATA_PROTECTION" || clause.clause_type == "CONFIDENTIALITY",
-                r if r.contains("PCI") || r.contains("SOX") => clause.clause_type == "PAYMENT_TERMS",
-                r if r.contains("Employment") || r.contains("Non-Compete") => clause.clause_type == "TERMINATION" || clause.clause_type == "GOVERNING_LAW",
+                r if r.contains("Article 11") => clause.clause_type == "ETHIOPIAN_PROBATION_PERIOD",
+                r if r.contains("Article 61") => clause.clause_type == "ETHIOPIAN_WORKING_HOURS",
+                r if r.contains("Article 14") => clause.clause_type == "ETHIOPIAN_PROHIBITED_ACTS",
+                r if r.contains("Article 35") || r.contains("Article 44") => clause.clause_type == "ETHIOPIAN_TERMINATION_NOTICE",
+                r if r.contains("Article 77") => clause.clause_type == "ETHIOPIAN_ANNUAL_LEAVE",
+                r if r.contains("Article 88") => clause.clause_type == "ETHIOPIAN_MATERNITY_LEAVE",
+                r if r.contains("Article 89") || r.contains("Article 90") => clause.clause_type == "ETHIOPIAN_MINIMUM_AGE",
+                r if r.contains("Article 85") => clause.clause_type == "ETHIOPIAN_SICK_LEAVE",
+                r if r.contains("Article 39") => clause.clause_type == "ETHIOPIAN_SEVERANCE_PAY",
+                r if r.contains("Article 67") || r.contains("Article 68") => clause.clause_type == "ETHIOPIAN_OVERTIME",
+                r if r.contains("Article 4") || r.contains("Article 6") || r.contains("Article 7") => clause.clause_type == "ETHIOPIAN_CONTRACT_FORMATION",
                 _ => false,
             };
 

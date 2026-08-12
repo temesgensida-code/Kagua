@@ -150,6 +150,20 @@ pub fn generate_audit_pdf(report: &AnalysisReport) -> Result<Vec<u8>, String> {
                 y_pos -= Mm(4.0);
             }
 
+            if let Some(ref citation) = v.article_citation {
+                let clean_cit = sanitize_pdf_string(citation);
+                current_layer.set_fill_color(Color::Rgb(Rgb::new(0.1, 0.3, 0.6, None)));
+                current_layer.use_text(format!("Statutory Citation: {}", truncate_line(&clean_cit, 85)), 8.0, Mm(15.0), y_pos, &font_bold);
+                current_layer.set_fill_color(Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)));
+                y_pos -= Mm(4.0);
+            }
+
+            if let Some(ref statutory) = v.statutory_text {
+                let clean_stat = sanitize_pdf_string(statutory);
+                current_layer.use_text(format!("Statutory Provision: \"{}\"", truncate_line(&clean_stat, 85)), 8.0, Mm(15.0), y_pos, &font_regular);
+                y_pos -= Mm(4.0);
+            }
+
             y_pos -= Mm(4.0); // Margin between items
         }
     }

@@ -8,6 +8,8 @@ export interface MappedViolation {
   snippet?: string;
   start_char?: number;
   end_char?: number;
+  article_citation?: string;
+  statutory_text?: string;
 }
 
 export interface AnalysisReport {
@@ -24,6 +26,9 @@ export interface AnalysisReport {
   clauses_detected: number;
   pii_redacted_count?: number;
   rag_facts?: any;
+  fact_provenance?: any;
+  proclamation_metadata?: any;
+  matched_articles?: any;
   raw_text?: string;
 }
 

@@ -5,11 +5,11 @@ from fastapi.responses import JSONResponse
 
 from services.extractor import extract_document_text
 from services.ner import extract_entities_and_clauses
-from services.rag_engine import extract_rag_compliance_facts, anonymize_text
+from services.rag_engine import extract_rag_compliance_facts, anonymize_text, proclamation_corpus
 
 app = FastAPI(
-    title="Kagua Document Parsing & Privacy-Preserving RAG Service",
-    description="FastAPI service for in-memory PDF/DOCX text extraction, PII redaction, local RAG vector retrieval, and Prolog fact generation.",
+    title="Kagua Ethiopian Labour Proclamation Parsing & RAG Service",
+    description="FastAPI service for in-memory document parsing, spaCy NER, and privacy-preserving RAG compliance extraction against Ethiopian Labour Proclamation No. 1156/2019.",
     version="2.0.0"
 )
 
@@ -27,11 +27,12 @@ MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024  # 20MB limit
 @app.get("/")
 def read_root():
     return {
-        "service": "Kagua Document Parser & RAG Engine API",
+        "service": "Kagua Ethiopian Labour Proclamation Parser & RAG Engine API",
+        "target_legal_framework": proclamation_corpus.metadata,
         "status": "online",
         "endpoints": {
-            "parse": "POST /parse (Upload document for NER & RAG extraction)",
-            "rag_parse": "POST /rag-parse (Dedicated in-memory RAG fact extractor)"
+            "parse": "POST /parse (Upload employment contract for Ethiopian Labour Proclamation NER & RAG fact extraction)",
+            "rag_parse": "POST /rag-parse (Dedicated Ethiopian Labour Proclamation RAG fact extractor)"
         }
     }
 
@@ -45,12 +46,11 @@ async def parse_document(file: UploadFile = File(...)):
     POST /parse endpoint:
     1. Streams file into RAM (0 disk writes).
     2. Extracts raw text with pypdf / python-docx.
-    3. Runs spaCy NER for character offset mapping.
-    4. Executes Privacy-Preserving RAG Pipeline:
-       - De-identifies sensitive user PII (names, SSNs, emails, phones).
-       - Builds in-memory dense vector index.
-       - Retrieves regulatory context chunks.
-       - Synthesizes clean structured Prolog facts for backtracking reasoning.
+    3. Runs spaCy NER & Ethiopian Labour Proclamation clause matcher.
+    4. Executes Privacy-Preserving Ethiopian Labour Law RAG Pipeline:
+       - De-identifies sensitive user PII.
+       - Retrieves matched Articles from parser/jsons/labour_proclamation_1156_2019.json.
+       - Synthesizes structured Ethiopian Labour Law Prolog facts for reasoning.
     """
     if not file or not file.filename:
         raise HTTPException(
@@ -87,10 +87,10 @@ async def parse_document(file: UploadFile = File(...)):
             detail="Could not extract readable text from document."
         )
 
-    # 2. Run spaCy NER & Clause Matcher
+    # 2. Run spaCy NER & Ethiopian Clause Matcher
     ner_result = extract_entities_and_clauses(raw_text)
 
-    # 3. Run Privacy-Preserving In-Memory RAG Engine
+    # 3. Run Privacy-Preserving Ethiopian Labour Law RAG Engine
     rag_result = extract_rag_compliance_facts(raw_text)
 
     # 4. Construct response payload
@@ -104,7 +104,8 @@ async def parse_document(file: UploadFile = File(...)):
         "summary": ner_result["summary"],
         "rag_facts": rag_result["prolog_facts"],
         "pii_redacted_count": rag_result["pii_redacted_count"],
-        "retrieved_chunks": rag_result["retrieved_chunks"]
+        "retrieved_chunks": rag_result["retrieved_chunks"],
+        "proclamation_metadata": rag_result["proclamation_metadata"]
     }
 
     return JSONResponse(status_code=200, content=response_payload)
@@ -113,7 +114,7 @@ async def parse_document(file: UploadFile = File(...)):
 async def rag_parse_document(file: UploadFile = File(...)):
     """
     POST /rag-parse endpoint:
-    Dedicated RAG endpoint returning anonymized text, PII redaction stats, retrieved chunks,
+    Dedicated RAG endpoint returning anonymized text, PII redaction stats, retrieved Ethiopian Labour Proclamation chunks,
     and structured Prolog facts.
     """
     if not file or not file.filename:
@@ -133,5 +134,7 @@ async def rag_parse_document(file: UploadFile = File(...)):
         "redacted_tokens": list(pii_map.values()),
         "sanitized_text_preview": sanitized_text[:300],
         "prolog_facts": rag_result["prolog_facts"],
-        "retrieved_chunks": rag_result["retrieved_chunks"]
+        "retrieved_chunks": rag_result["retrieved_chunks"],
+        "proclamation_metadata": rag_result["proclamation_metadata"]
     })
+

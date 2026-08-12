@@ -222,6 +222,7 @@ pub async fn process_analysis_pipeline(
         clauses_detected: parser_response.clauses.len(),
         pii_redacted_count: parser_response.pii_redacted_count,
         rag_facts: parser_response.rag_facts,
+        fact_provenance: parser_response.fact_provenance,
         proclamation_metadata: parser_response.proclamation_metadata,
         matched_articles: parser_response.retrieved_chunks,
     };

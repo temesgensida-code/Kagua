@@ -42,6 +42,7 @@ pub struct ParserResponse {
     pub clauses: Vec<ClauseSpan>,
     pub summary: ParseSummary,
     pub rag_facts: Option<serde_json::Value>,
+    pub fact_provenance: Option<serde_json::Value>,
     pub pii_redacted_count: Option<usize>,
     pub retrieved_chunks: Option<serde_json::Value>,
     pub proclamation_metadata: Option<serde_json::Value>,
@@ -104,6 +105,7 @@ pub struct AnalysisReport {
     pub clauses_detected: usize,
     pub pii_redacted_count: Option<usize>,
     pub rag_facts: Option<serde_json::Value>,
+    pub fact_provenance: Option<serde_json::Value>,
     pub proclamation_metadata: Option<serde_json::Value>,
     pub matched_articles: Option<serde_json::Value>,
 }

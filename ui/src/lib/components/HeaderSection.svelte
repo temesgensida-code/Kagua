@@ -170,8 +170,6 @@
 
   .framework-badge:hover {
     transform: translateY(-2px);
-    box-shadow: 0 0 16px var(--fw-color);
-    filter: brightness(1.2);
   }
 
   .framework-badge.inactive {

@@ -380,7 +380,6 @@
   .btn-rescan:hover {
     background: rgba(0, 240, 255, 0.1);
     border-color: var(--cyan-primary);
-    box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
   }
 
   /* Split Screen Layout */
@@ -614,12 +613,10 @@
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s ease;
-    box-shadow: 0 0 12px rgba(0, 240, 255, 0.3);
   }
 
   .btn-pdf-export:hover:not(:disabled) {
     background: #5ce1e6;
-    box-shadow: 0 0 20px rgba(0, 240, 255, 0.6);
   }
 
   .btn-pdf-export:disabled {
@@ -934,7 +931,6 @@
   .jump-doc-btn:hover {
     background: rgba(0, 240, 255, 0.2);
     border-color: var(--cyan-primary);
-    box-shadow: 0 0 12px rgba(0, 240, 255, 0.4);
     transform: translateY(-1px);
   }
 
@@ -942,6 +938,5 @@
     background: var(--cyan-primary);
     color: #040c16;
     border-color: var(--cyan-primary);
-    box-shadow: 0 0 16px var(--cyan-primary);
   }
 </style>

@@ -368,7 +368,6 @@
     background: rgba(0, 240, 255, 0.22);
     border-color: var(--cyan-primary);
     color: #ffffff;
-    box-shadow: 0 0 12px rgba(0, 240, 255, 0.4);
   }
 
   .expand-btn.expanded {
@@ -380,7 +379,6 @@
   .expand-btn.expanded:hover {
     background: rgba(255, 42, 112, 0.35);
     color: #ffffff;
-    box-shadow: 0 0 12px rgba(255, 42, 112, 0.5);
   }
 
   .btn-icon {

@@ -307,13 +307,11 @@
     border-radius: 4px;
     padding: 12px 34px;
     cursor: pointer;
-    box-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .btn-browse:hover {
     background: #5ce1e6;
-    box-shadow: 0 0 30px rgba(0, 240, 255, 0.7);
     transform: translateY(-2px) scale(1.02);
   }
 

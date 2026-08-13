@@ -369,7 +369,7 @@
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.25s ease;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.25);
   }
 
   .expand-btn:hover {
@@ -433,16 +433,21 @@
   }
 
   .ctrl-btn {
-    background: none;
-    border: none;
-    color: var(--cyan-primary);
+    background: rgba(13, 23, 36, 0.95);
+    border: 1px solid #132E35;
+    color: #e2f1f8;
     font-size: 1rem;
     font-weight: bold;
     cursor: pointer;
-    padding: 0 4px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    transition: all 0.25s ease;
+    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.25);
   }
 
   .ctrl-btn:hover {
+    background: #132E35;
+    border-color: #1e434c;
     color: #ffffff;
   }
 
@@ -593,13 +598,16 @@
   }
 
   :global([data-theme="light"]) .ctrl-btn {
-    color: #5a6a78;
+    background: rgba(194, 198, 202, 0.95);
     border-color: #8a9aa8;
+    color: #2d3a45;
+    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.1);
   }
 
   :global([data-theme="light"]) .ctrl-btn:hover {
-    color: #2d3a45;
-    background: rgba(105, 129, 141, 0.15);
+    background: #69818d;
+    border-color: #69818d;
+    color: #ffffff;
   }
 
   :global([data-theme="light"]) .zoom-val {
@@ -610,6 +618,7 @@
     background: rgba(194, 198, 202, 0.95);
     border-color: #8a9aa8;
     color: #2d3a45;
+    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.1);
   }
 
   :global([data-theme="light"]) .expand-btn:hover {
@@ -626,6 +635,11 @@
 
   :global([data-theme="light"]) .viewer-content {
     background: #b8bcc0;
+  }
+
+  :global([data-theme="light"]) .pdf-controls {
+    background: rgba(194, 198, 202, 0.5);
+    border-color: #8a9aa8;
   }
 
 </style>

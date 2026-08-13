@@ -1118,4 +1118,36 @@
   :global([data-theme="light"]) .prov-title {
     color: #2d3a45;
   }
+
+  :global([data-theme="light"]) .provenance-list {
+    color: #8eaebe;
+  }
+
+  :global([data-theme="light"]) .prov-item {
+    border-color: #8eaebe;
+  }
+
+  :global([data-theme="light"]) .prov-key,
+  :global([data-theme="light"]) .prov-val {
+    color: #8eaebe;
+  }
+
+  :global([data-theme="light"]) .prov-src-lbl {
+    color: #8eaebe;
+  }
+
+  /* 2px right+bottom shadow on all action buttons */
+  .btn-rescan,
+  .btn-pdf-export,
+  .btn-json-export,
+  .jump-doc-btn {
+    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.25);
+  }
+
+  :global([data-theme="light"]) .btn-rescan,
+  :global([data-theme="light"]) .btn-pdf-export,
+  :global([data-theme="light"]) .btn-json-export,
+  :global([data-theme="light"]) .jump-doc-btn {
+    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.1);
+  }
 </style>

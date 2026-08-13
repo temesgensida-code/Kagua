@@ -76,10 +76,6 @@
     role="region"
     aria-label="Document Drop Zone"
   >
-    <!-- Cyberpunk Corner Brackets -->
-    <div class="corner-bracket top-left"></div>
-    <div class="corner-bracket bottom-right"></div>
-
     <input
       type="file"
       bind:this={fileInput}
@@ -212,30 +208,6 @@
     box-shadow: 0 0 30px rgba(0, 240, 255, 0.3);
   }
 
-  .corner-bracket {
-    position: absolute;
-    width: 14px;
-    height: 14px;
-    pointer-events: none;
-    z-index: 2;
-  }
-
-  .corner-bracket.top-left {
-    top: -1px;
-    left: -1px;
-    border-top: 2px solid var(--cyan-primary);
-    border-left: 2px solid var(--cyan-primary);
-    box-shadow: -2px -2px 8px var(--cyan-primary);
-  }
-
-  .corner-bracket.bottom-right {
-    bottom: -1px;
-    right: -1px;
-    border-bottom: 2px solid var(--cyan-primary);
-    border-right: 2px solid var(--cyan-primary);
-    box-shadow: 2px 2px 8px var(--cyan-primary);
-  }
-
   .hidden-input {
     display: none;
   }
@@ -258,22 +230,24 @@
   .icon-container {
     width: 64px;
     height: 64px;
-    background: rgba(0, 240, 255, 0.06);
-    border: 1px solid rgba(0, 240, 255, 0.2);
+    background: rgba(19, 46, 53, 0.25);
+    border: 1px solid #1e434c;
     border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
     margin-bottom: 1.5rem;
-    box-shadow: inset 0 0 12px rgba(0, 240, 255, 0.15);
+    box-shadow: inset 0 0 12px rgba(30, 67, 76, 0.3);
     transition:
       transform 0.3s ease,
+      border-color 0.3s ease,
       box-shadow 0.3s ease;
   }
 
   .dropzone-panel:hover .icon-container {
     transform: translateY(-4px);
-    box-shadow: 0 0 20px rgba(0, 240, 255, 0.3);
+    border-color: #2a5d6a;
+    box-shadow: 0 0 15px rgba(30, 67, 76, 0.4);
   }
 
   .doc-icon {
@@ -305,9 +279,9 @@
     font-size: 0.85rem;
     font-weight: 700;
     letter-spacing: 2px;
-    color: #050b14;
-    background: var(--cyan-primary);
-    border: none;
+    color: #e2f1f8;
+    background: #132E35;
+    border: 1px solid #1e434c;
     border-radius: 4px;
     padding: 12px 34px;
     cursor: pointer;
@@ -315,7 +289,8 @@
   }
 
   .btn-browse:hover {
-    background: #5ce1e6;
+    background: #1c3f48;
+    border-color: #2a5863;
     transform: translateY(-2px) scale(1.02);
   }
 

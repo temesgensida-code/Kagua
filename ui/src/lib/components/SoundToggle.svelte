@@ -40,7 +40,7 @@
     display: flex;
     align-items: center;
     background: rgba(13, 23, 36, 0.95);
-    border: 1px solid rgba(0, 240, 255, 0.25);
+    border: 1px solid #132E35;
     border-radius: 6px;
     padding: 3px;
     gap: 3px;
@@ -50,7 +50,7 @@
   }
 
   .sound-toggle-card:hover {
-    border-color: var(--cyan-primary);
+    border-color: #1e434c;
   }
 
   .sliding-indicator {
@@ -59,8 +59,8 @@
     left: 3px;
     width: 28px;
     height: 26px;
-    background: rgba(0, 240, 255, 0.2);
-    border: 1px solid var(--cyan-primary);
+    background: #132E35;
+    border: 1px solid #1e434c;
     border-radius: 4px;
     transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), background 0.25s ease, border-color 0.25s ease;
     pointer-events: none;
@@ -68,8 +68,8 @@
 
   .sliding-indicator.muted {
     transform: translateX(31px);
-    background: rgba(255, 42, 112, 0.2);
-    border-color: #ff2a70;
+    background: #132E35;
+    border-color: #1e434c;
   }
 
   .icon-slot {
@@ -80,11 +80,11 @@
     justify-content: center;
     width: 28px;
     height: 26px;
-    color: var(--text-muted);
+    color: #556c80;
     transition: color 0.2s ease;
   }
 
   .icon-slot.active {
-    color: #ffffff;
+    color: #e2f1f8;
   }
 </style>

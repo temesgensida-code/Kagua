@@ -33,7 +33,8 @@
 		position: relative;
 		z-index: 1;
 		width: 100%;
-		max-width: 960px;
+		max-width: 1680px;
 		margin: 0 auto;
+		padding: 0 1rem;
 	}
 </style>

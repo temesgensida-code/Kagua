@@ -386,11 +386,11 @@
   /* Split Screen Layout */
   .split-screen-grid {
     display: grid;
-    grid-template-columns: 1fr 450px;
-    gap: 1.25rem;
+    grid-template-columns: 1fr 400px;
+    gap: 1.5rem;
     height: calc(100vh - 170px);
     min-height: 650px;
-    max-height: 850px;
+    max-height: 880px;
   }
 
   @media (max-width: 1024px) {

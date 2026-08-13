@@ -38,10 +38,23 @@
   let pdfError = $state<string | null>(null);
   let pageTexts = $state<Record<number, string>>({});
   let viewMode = $state<'pdf' | 'text'>('pdf');
+  let isExpanded = $state(false);
 
   let pulseIndex = $state<number | null>(null);
   let pulseTimer: any = null;
   let highlightedPage = $state<number | null>(null);
+
+  onMount(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape' && isExpanded) {
+        isExpanded = false;
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  });
 
   // Load PDF when fileBlob or isPdf changes
   $effect(() => {
@@ -294,7 +307,7 @@
   });
 </script>
 
-<div class="doc-viewer-panel">
+<div class="doc-viewer-panel" class:fullscreen={isExpanded}>
   <!-- Document Viewer Header -->
   <div class="viewer-header">
     <div class="title-box">
@@ -303,36 +316,53 @@
       <span class="char-length">{isPdf ? `${numPages} PAGES` : `${rawText ? rawText.length : 0} CHARS`}</span>
     </div>
 
-    <!-- PDF Viewer Controls -->
-    {#if isPdf && viewMode === 'pdf'}
-      <div class="pdf-controls">
-        <button type="button" class="ctrl-btn" onclick={() => changeZoom(-0.15)} title="Zoom Out">&minus;</button>
-        <span class="zoom-val">{Math.round(zoomLevel * 100)}%</span>
-        <button type="button" class="ctrl-btn" onclick={() => changeZoom(0.15)} title="Zoom In">&plus;</button>
-      </div>
-    {/if}
+    <div class="header-actions">
+      <!-- PDF Viewer Controls -->
+      {#if isPdf && viewMode === 'pdf'}
+        <div class="pdf-controls">
+          <button type="button" class="ctrl-btn" onclick={() => changeZoom(-0.15)} title="Zoom Out">&minus;</button>
+          <span class="zoom-val">{Math.round(zoomLevel * 100)}%</span>
+          <button type="button" class="ctrl-btn" onclick={() => changeZoom(0.15)} title="Zoom In">&plus;</button>
+        </div>
+      {/if}
 
-    <!-- Mode Toggle -->
-    {#if isPdf}
-      <div class="mode-toggle">
-        <button
-          type="button"
-          class="toggle-btn"
-          class:active={viewMode === 'pdf'}
-          onclick={() => (viewMode = 'pdf')}
-        >
-          PDF VIEWER
-        </button>
-        <button
-          type="button"
-          class="toggle-btn"
-          class:active={viewMode === 'text'}
-          onclick={() => (viewMode = 'text')}
-        >
-          TEXT VIEW
-        </button>
-      </div>
-    {/if}
+      <!-- Mode Toggle -->
+      {#if isPdf}
+        <div class="mode-toggle">
+          <button
+            type="button"
+            class="toggle-btn"
+            class:active={viewMode === 'pdf'}
+            onclick={() => (viewMode = 'pdf')}
+          >
+            PDF VIEWER
+          </button>
+          <button
+            type="button"
+            class="toggle-btn"
+            class:active={viewMode === 'text'}
+            onclick={() => (viewMode = 'text')}
+          >
+            TEXT VIEW
+          </button>
+        </div>
+      {/if}
+
+      <!-- Expand / Fullscreen Button -->
+      <button
+        type="button"
+        class="expand-btn"
+        class:expanded={isExpanded}
+        onclick={() => (isExpanded = !isExpanded)}
+        title={isExpanded ? 'Exit Fullscreen View (Esc)' : 'Expand PDF Card to Fullscreen'}
+      >
+        {#if isExpanded}
+          <span class="btn-icon">↙↗</span> EXIT
+        {:else}
+          <span class="btn-icon">⛶</span> EXPAND
+        {/if}
+      </button>
+    </div>
   </div>
 
   <!-- PDF / Text Viewer Content Surface -->
@@ -390,6 +420,19 @@
     border-radius: 6px;
     overflow: hidden;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .doc-viewer-panel.fullscreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 999999;
+    border-radius: 0;
+    border: none;
+    box-shadow: 0 0 60px rgba(0, 240, 255, 0.35);
   }
 
   .viewer-header {
@@ -401,6 +444,51 @@
     border-bottom: 1px solid rgba(0, 240, 255, 0.15);
     flex-wrap: wrap;
     gap: 0.75rem;
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .expand-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 700;
+    background: rgba(0, 240, 255, 0.08);
+    border: 1px solid rgba(0, 240, 255, 0.3);
+    color: var(--cyan-primary);
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .expand-btn:hover {
+    background: rgba(0, 240, 255, 0.22);
+    border-color: var(--cyan-primary);
+    color: #ffffff;
+    box-shadow: 0 0 12px rgba(0, 240, 255, 0.4);
+  }
+
+  .expand-btn.expanded {
+    background: rgba(255, 42, 112, 0.2);
+    border-color: rgba(255, 42, 112, 0.6);
+    color: #ff9ec4;
+  }
+
+  .expand-btn.expanded:hover {
+    background: rgba(255, 42, 112, 0.35);
+    color: #ffffff;
+    box-shadow: 0 0 12px rgba(255, 42, 112, 0.5);
+  }
+
+  .btn-icon {
+    font-size: 0.85rem;
   }
 
   .title-box {

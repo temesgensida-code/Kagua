@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { MappedViolation } from '$lib/services/api';
+  import { soundState } from '$lib/services/sound.svelte';
 
   let pdfjsLib = $state<any>(null);
 
@@ -245,8 +246,10 @@
   });
 
   function changeZoom(delta: number) {
-    zoomLevel = Math.max(0.6, Math.min(2.5, zoomLevel + delta));
-    if (pdfDoc) {
+    soundState.playClick();
+    const newZoom = Math.min(Math.max(0.6, zoomLevel + delta), 2.5);
+    if (newZoom !== zoomLevel) {
+      zoomLevel = newZoom;
       renderPdfPages();
     }
   }
@@ -275,7 +278,10 @@
         type="button"
         class="expand-btn"
         class:expanded={isExpanded}
-        onclick={() => (isExpanded = !isExpanded)}
+        onclick={() => {
+          soundState.playClick();
+          isExpanded = !isExpanded;
+        }}
         title={isExpanded ? 'Exit Fullscreen View (Esc)' : 'Expand PDF Card to Fullscreen'}
       >
         {#if isExpanded}

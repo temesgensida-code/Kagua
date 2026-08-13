@@ -2,6 +2,7 @@
   import DocumentViewer from './DocumentViewer.svelte';
   import { downloadPdfAuditReport, type AnalysisReport, type MappedViolation } from '$lib/services/api';
   import type { Framework } from '$lib/data/sampleDocs';
+  import { soundState } from '$lib/services/sound.svelte';
 
   interface Props {
     file: { name: string; size: string; type: string; content?: string; blob?: Blob | File };
@@ -39,6 +40,7 @@
   let isDownloadingPdf = $state(false);
 
   async function handleDownloadPdf() {
+    soundState.playClick();
     if (!report) {
       alert('No active backend audit report available to generate PDF.');
       return;
@@ -58,6 +60,7 @@
   }
 
   function handleDownloadJson() {
+    soundState.playClick();
     const dataStr = JSON.stringify(report || { filename: file.name, violations, score }, null, 2);
     const blob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -104,7 +107,7 @@
     </div>
 
     <div class="action-buttons">
-      <button type="button" class="btn-rescan" onclick={onReset}>
+      <button type="button" class="btn-rescan" onclick={() => { soundState.playClick(); onReset(); }}>
         &larr; SCAN ANOTHER DOCUMENT
       </button>
     </div>

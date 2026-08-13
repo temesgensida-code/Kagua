@@ -1,6 +1,7 @@
 <script lang="ts">
   import { SAMPLE_DOCS, type SampleDoc } from "$lib/data/sampleDocs";
   import type { ProgressEvent } from "$lib/services/api";
+  import { soundState } from '$lib/services/sound.svelte';
 
   interface Props {
     isScanning: boolean;
@@ -38,6 +39,7 @@
     isDragging = false;
     if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
       const file = e.dataTransfer.files[0];
+      soundState.playBrowse();
       onFileSelected(file, file.name);
     }
   }
@@ -52,10 +54,12 @@
   }
 
   function triggerBrowse() {
+    soundState.playBrowse();
     fileInput?.click();
   }
 
   function selectSample(sample: SampleDoc) {
+    soundState.playClick();
     const blob = new Blob([sample.content], { type: "text/plain" });
     onFileSelected(blob, sample.filename, sample.content);
   }

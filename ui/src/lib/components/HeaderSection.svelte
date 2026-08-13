@@ -1,5 +1,7 @@
 <script lang="ts">
   import type { Framework } from '$lib/data/sampleDocs';
+  import SoundToggle from './SoundToggle.svelte';
+  import { soundState } from '$lib/services/sound.svelte';
 
   interface Props {
     frameworks: Framework[];
@@ -12,10 +14,15 @@
 </script>
 
 <header class="header-container">
-  <!-- Tag line with vertical pink line accent -->
-  <div class="tag-row">
-    <span class="pink-line"></span>
-    <span class="tag-text">ETHIOPIAN LABOUR COMPLIANCE ENGINE</span>
+  <div class="top-header-row">
+    <!-- Tag line with vertical pink line accent -->
+    <div class="tag-row">
+      <span class="pink-line"></span>
+      <span class="tag-text">ETHIOPIAN LABOUR COMPLIANCE ENGINE</span>
+    </div>
+
+    <!-- Top Right Sound Toggle -->
+    <SoundToggle />
   </div>
 
   <!-- Main Headline -->
@@ -47,7 +54,10 @@
             --fw-border: {fw.border};
             --fw-glow: {fw.glow};
           "
-          onclick={() => onToggleFramework(fw.id)}
+          onclick={() => {
+            onToggleFramework(fw.id);
+            soundState.playClick();
+          }}
           title="{fw.description} — Click to {fw.active ? 'deactivate' : 'activate'}"
         >
           <span class="badge-dot"></span>
@@ -63,6 +73,14 @@
     width: 100%;
     margin-bottom: 2rem;
     text-align: left;
+  }
+
+  .top-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin-bottom: 0.75rem;
   }
 
   .tag-row {

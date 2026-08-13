@@ -436,4 +436,67 @@
     white-space: nowrap;
     max-width: 180px;
   }
+
+  /* ─── Light Mode Overrides ─── */
+  :global([data-theme="light"]) .dropzone-panel {
+    background: #c2c6ca;
+    border-color: #8a9aa8;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  }
+
+  :global([data-theme="light"]) .dropzone-panel:hover {
+    border-color: #69818d;
+  }
+
+  :global([data-theme="light"]) .icon-container {
+    background: rgba(105, 129, 141, 0.15);
+    border-color: #8a9aa8;
+  }
+
+  :global([data-theme="light"]) .doc-icon path {
+    stroke: #69818d;
+  }
+
+  :global([data-theme="light"]) .drop-title {
+    color: #2d3a45;
+  }
+
+  :global([data-theme="light"]) .file-specs {
+    color: #5a6a78;
+  }
+
+  :global([data-theme="light"]) .btn-browse {
+    background: #69818d;
+    border-color: #8a9aa8;
+    color: #ffffff;
+  }
+
+  :global([data-theme="light"]) .btn-browse:hover {
+    background: #5a7380;
+    border-color: #69818d;
+  }
+
+  :global([data-theme="light"]) .samples-bar {
+    background: rgba(194, 198, 202, 0.8);
+    border-color: #8a9aa8;
+  }
+
+  :global([data-theme="light"]) .samples-label {
+    color: #5a6a78;
+  }
+
+  :global([data-theme="light"]) .sample-btn {
+    color: #5a6a78;
+    border-color: #8a9aa8;
+  }
+
+  :global([data-theme="light"]) .sample-btn:hover {
+    color: #2d3a45;
+    background: rgba(105, 129, 141, 0.1);
+  }
+
+  :global([data-theme="light"]) .sample-ext {
+    color: #69818d;
+    background: rgba(105, 129, 141, 0.15);
+  }
 </style>

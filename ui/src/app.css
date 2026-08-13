@@ -22,6 +22,24 @@
   --font-body: 'Inter', sans-serif;
 }
 
+/* ─── Light Mode Theme ─── */
+[data-theme="light"] {
+  --bg-dark: #AFB3B7;
+  --bg-panel: #c2c6ca;
+  --bg-panel-hover: #b8bcc0;
+  --grid-color: rgba(105, 129, 141, 0.08);
+
+  --cyan-primary: #69818d;
+  --cyan-glow: rgba(105, 129, 141, 0.2);
+  --cyan-muted: #69818d;
+
+  --pink-accent: #cc2255;
+
+  --text-main: #2d3a45;
+  --text-muted: #5a6a78;
+  --text-dim: #8a9aa8;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -119,4 +137,32 @@ html, body {
 @keyframes gridFlicker {
   0%, 100% { opacity: 0.8; }
   50% { opacity: 1; }
+}
+
+/* ─── Light Mode Global Overrides ─── */
+[data-theme="light"] .bg-grid {
+  background-image:
+    linear-gradient(to right, rgba(105, 129, 141, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(105, 129, 141, 0.06) 1px, transparent 1px);
+}
+
+[data-theme="light"] .bg-glow {
+  background: radial-gradient(circle, rgba(105, 129, 141, 0.08) 0%, rgba(175, 179, 183, 0) 70%);
+}
+
+[data-theme="light"] .bg-paper-texture {
+  opacity: 0.15;
+  mix-blend-mode: multiply;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-track {
+  background: #b0b4b8;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: #8a9aa8;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: #69818d;
 }

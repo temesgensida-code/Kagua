@@ -1,41 +1,42 @@
 <script lang="ts">
-  import { Volume2, VolumeX } from '@lucide/svelte';
+  import { Sun, Moon } from '@lucide/svelte';
+  import { themeState } from '$lib/services/theme.svelte';
   import { soundState } from '$lib/services/sound.svelte';
 </script>
 
-<div class="sound-card-wrapper">
+<div class="theme-card-wrapper">
   <button
     type="button"
-    class="sound-toggle-card"
+    class="theme-toggle-card"
     onclick={() => {
-      soundState.toggleMute();
-      if (!soundState.isMuted) soundState.playClick();
+      themeState.toggle();
+      soundState.playClick();
     }}
-    title={soundState.isMuted ? 'Unmute sound effects' : 'Mute sound effects'}
-    aria-label="Toggle sound"
+    title={themeState.isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+    aria-label="Toggle theme"
   >
     <!-- Sliding active indicator rectangle -->
-    <div class="sliding-indicator" class:muted={soundState.isMuted}></div>
+    <div class="sliding-indicator" class:light={!themeState.isDark}></div>
 
-    <!-- Volume On Icon -->
-    <div class="icon-slot" class:active={!soundState.isMuted}>
-      <Volume2 size={16} />
+    <!-- Dark Mode Icon -->
+    <div class="icon-slot" class:active={themeState.isDark}>
+      <Moon size={16} />
     </div>
 
-    <!-- Volume Muted Icon -->
-    <div class="icon-slot" class:active={soundState.isMuted}>
-      <VolumeX size={16} />
+    <!-- Light Mode Icon -->
+    <div class="icon-slot" class:active={!themeState.isDark}>
+      <Sun size={16} />
     </div>
   </button>
 </div>
 
 <style>
-  .sound-card-wrapper {
+  .theme-card-wrapper {
     display: flex;
     align-items: center;
   }
 
-  .sound-toggle-card {
+  .theme-toggle-card {
     position: relative;
     display: flex;
     align-items: center;
@@ -49,8 +50,17 @@
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
   }
 
-  .sound-toggle-card:hover {
+  :global([data-theme="light"]) .theme-toggle-card {
+    background: rgba(175, 179, 183, 0.95);
+    border-color: #99a3ab;
+  }
+
+  .theme-toggle-card:hover {
     border-color: #1e434c;
+  }
+
+  :global([data-theme="light"]) .theme-toggle-card:hover {
+    border-color: #69818d;
   }
 
   .sliding-indicator {
@@ -66,10 +76,10 @@
     pointer-events: none;
   }
 
-  .sliding-indicator.muted {
+  .sliding-indicator.light {
     transform: translateX(31px);
-    background: #132E35;
-    border-color: #1e434c;
+    background: #69818d;
+    border-color: #556c80;
   }
 
   .icon-slot {
@@ -86,26 +96,6 @@
 
   .icon-slot.active {
     color: #e2f1f8;
-  }
-
-  /* ─── Light Mode Overrides ─── */
-  :global([data-theme="light"]) .sound-toggle-card {
-    background: rgba(175, 179, 183, 0.95);
-    border-color: #99a3ab;
-  }
-
-  :global([data-theme="light"]) .sound-toggle-card:hover {
-    border-color: #69818d;
-  }
-
-  :global([data-theme="light"]) .sliding-indicator {
-    background: #69818d;
-    border-color: #556c80;
-  }
-
-  :global([data-theme="light"]) .sliding-indicator.muted {
-    background: #69818d;
-    border-color: #556c80;
   }
 
   :global([data-theme="light"]) .icon-slot {

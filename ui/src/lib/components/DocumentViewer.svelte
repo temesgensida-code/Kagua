@@ -568,4 +568,64 @@
     }
   }
 
+  /* ─── Light Mode Overrides ─── */
+  :global([data-theme="light"]) .doc-viewer-panel {
+    background: #c2c6ca;
+    border-color: #8a9aa8;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  }
+
+  :global([data-theme="light"]) .viewer-header {
+    background: rgba(194, 198, 202, 0.95);
+    border-bottom-color: #8a9aa8;
+  }
+
+  :global([data-theme="light"]) .view-icon {
+    color: #69818d;
+  }
+
+  :global([data-theme="light"]) .doc-filename {
+    color: #2d3a45;
+  }
+
+  :global([data-theme="light"]) .char-length {
+    color: #5a6a78;
+  }
+
+  :global([data-theme="light"]) .ctrl-btn {
+    color: #5a6a78;
+    border-color: #8a9aa8;
+  }
+
+  :global([data-theme="light"]) .ctrl-btn:hover {
+    color: #2d3a45;
+    background: rgba(105, 129, 141, 0.15);
+  }
+
+  :global([data-theme="light"]) .zoom-val {
+    color: #5a6a78;
+  }
+
+  :global([data-theme="light"]) .expand-btn {
+    background: rgba(194, 198, 202, 0.95);
+    border-color: #8a9aa8;
+    color: #2d3a45;
+  }
+
+  :global([data-theme="light"]) .expand-btn:hover {
+    background: #69818d;
+    border-color: #69818d;
+    color: #ffffff;
+  }
+
+  :global([data-theme="light"]) .expand-btn.expanded {
+    background: #69818d;
+    border-color: #8a9aa8;
+    color: #ffffff;
+  }
+
+  :global([data-theme="light"]) .viewer-content {
+    background: #b8bcc0;
+  }
+
 </style>

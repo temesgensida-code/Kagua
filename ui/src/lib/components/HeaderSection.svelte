@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Framework } from '$lib/data/sampleDocs';
   import SoundToggle from './SoundToggle.svelte';
+  import ThemeToggle from './ThemeToggle.svelte';
   import { soundState } from '$lib/services/sound.svelte';
 
   interface Props {
@@ -21,8 +22,11 @@
       <span class="tag-text">ETHIOPIAN LABOUR COMPLIANCE ENGINE</span>
     </div>
 
-    <!-- Top Right Sound Toggle -->
-    <SoundToggle />
+    <!-- Top Right Toggle Controls -->
+    <div class="toggle-controls">
+      <ThemeToggle />
+      <SoundToggle />
+    </div>
   </div>
 
   <!-- Main Headline -->
@@ -205,5 +209,61 @@
     background-color: currentColor;
     border-radius: 50%;
     box-shadow: 0 0 6px currentColor;
+  }
+
+  .toggle-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* Light mode header overrides */
+  :global([data-theme="light"]) .tag-text {
+    color: #4a5a68;
+    text-shadow: none;
+  }
+
+  :global([data-theme="light"]) .pink-line {
+    box-shadow: none;
+  }
+
+  :global([data-theme="light"]) .text-kagua {
+    color: #2d3a45;
+    text-shadow: none;
+  }
+
+  :global([data-theme="light"]) .description {
+    color: #5a6a78;
+  }
+
+  :global([data-theme="light"]) .frameworks-label {
+    color: #5a6a78;
+  }
+
+  :global([data-theme="light"]) .bullet {
+    color: #69818d;
+  }
+
+  :global([data-theme="light"]) .count {
+    color: #8a9aa8;
+  }
+
+  :global([data-theme="light"]) .framework-badge {
+    background: #69818d;
+    border-color: #8a9aa8;
+    color: #ffffff;
+    box-shadow: none;
+  }
+
+  :global([data-theme="light"]) .framework-badge.inactive {
+    background: #c8cdd2;
+    border-color: #b0b6bc;
+    color: #8a9aa8;
+    filter: none;
+    opacity: 0.6;
+  }
+
+  :global([data-theme="light"]) .badge-dot {
+    box-shadow: none;
   }
 </style>

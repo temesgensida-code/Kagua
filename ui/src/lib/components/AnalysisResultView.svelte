@@ -932,4 +932,190 @@
     color: #ffffff;
     border-color: #2a5863;
   }
+
+  /* ─── Light Mode Overrides ─── */
+  :global([data-theme="light"]) .result-container {
+    color: #2d3a45;
+  }
+
+  :global([data-theme="light"]) .result-header {
+    background: #c2c6ca;
+    border-color: #8a9aa8;
+  }
+
+  :global([data-theme="light"]) .file-icon-badge {
+    background: #69818d;
+    color: #ffffff;
+  }
+
+  :global([data-theme="light"]) .file-title {
+    color: #2d3a45;
+  }
+
+  :global([data-theme="light"]) .file-meta {
+    color: #5a6a78;
+  }
+
+  :global([data-theme="light"]) .badge-accent {
+    color: #69818d;
+  }
+
+  :global([data-theme="light"]) .btn-rescan {
+    background: #69818d;
+    border-color: #8a9aa8;
+    color: #ffffff;
+  }
+
+  :global([data-theme="light"]) .btn-rescan:hover {
+    background: #5a7380;
+    border-color: #69818d;
+  }
+
+  :global([data-theme="light"]) .count-chip.critical {
+    color: #cc2244;
+  }
+
+  :global([data-theme="light"]) .count-chip.warning {
+    color: #b8960e;
+  }
+
+  :global([data-theme="light"]) .export-card {
+    background: #c2c6ca;
+    border-color: #8a9aa8;
+  }
+
+  :global([data-theme="light"]) .export-title {
+    color: #5a6a78;
+  }
+
+  :global([data-theme="light"]) .btn-pdf-export,
+  :global([data-theme="light"]) .btn-json-export {
+    background: #69818d;
+    border-color: #8a9aa8;
+    color: #ffffff;
+  }
+
+  :global([data-theme="light"]) .btn-pdf-export:hover:not(:disabled),
+  :global([data-theme="light"]) .btn-json-export:hover {
+    background: #5a7380;
+    border-color: #69818d;
+  }
+
+  :global([data-theme="light"]) .findings-card {
+    background: #c2c6ca;
+    border-color: #8a9aa8;
+  }
+
+  :global([data-theme="light"]) .findings-header {
+    border-bottom-color: rgba(0, 0, 0, 0.1);
+  }
+
+  :global([data-theme="light"]) .findings-title {
+    color: #2d3a45;
+  }
+
+  :global([data-theme="light"]) .sub-info {
+    color: #5a6a78;
+  }
+
+  :global([data-theme="light"]) .finding-item {
+    background: rgba(175, 179, 183, 0.5);
+    border-color: #8a9aa8;
+  }
+
+  :global([data-theme="light"]) .finding-item:hover {
+    border-color: #69818d;
+    background: rgba(105, 129, 141, 0.1);
+  }
+
+  :global([data-theme="light"]) .finding-item.selected {
+    border-color: #69818d;
+    box-shadow: 0 0 10px rgba(105, 129, 141, 0.2);
+    background: rgba(105, 129, 141, 0.15);
+  }
+
+  :global([data-theme="light"]) .badge-severity.severity-critical {
+    background: #cc2244;
+    color: #ffffff;
+    border-color: #aa1d3a;
+  }
+
+  :global([data-theme="light"]) .badge-severity.severity-warning {
+    background: #b8960e;
+    color: #ffffff;
+    border-color: #9a7d0b;
+  }
+
+  :global([data-theme="light"]) .finding-domain {
+    color: #69818d;
+  }
+
+  :global([data-theme="light"]) .finding-rule-title {
+    color: #2d3a45;
+  }
+
+  :global([data-theme="light"]) .finding-rule-code {
+    color: #5a6a78;
+  }
+
+  :global([data-theme="light"]) .finding-desc {
+    color: #5a6a78;
+  }
+
+  :global([data-theme="light"]) .finding-rec {
+    background: rgba(105, 129, 141, 0.08);
+    border-left-color: #69818d;
+    color: #4a5a68;
+  }
+
+  :global([data-theme="light"]) .rec-label {
+    color: #69818d;
+  }
+
+  :global([data-theme="light"]) .statutory-citation-badge {
+    color: #69818d;
+    background: rgba(105, 129, 141, 0.1);
+    border-color: #8a9aa8;
+  }
+
+  :global([data-theme="light"]) .statutory-text-box {
+    background: rgba(194, 198, 202, 0.5);
+    border-left-color: #69818d;
+    color: #4a5a68;
+  }
+
+  :global([data-theme="light"]) .stat-lbl {
+    color: #69818d;
+  }
+
+  :global([data-theme="light"]) .jump-doc-btn {
+    background: #69818d;
+    border-color: #8a9aa8;
+    color: #ffffff;
+  }
+
+  :global([data-theme="light"]) .jump-doc-btn:hover {
+    background: #5a7380;
+    border-color: #69818d;
+  }
+
+  :global([data-theme="light"]) .jump-doc-btn.active {
+    background: #4a6370;
+    color: #ffffff;
+    border-color: #5a7380;
+  }
+
+  :global([data-theme="light"]) .offset-badge {
+    color: #69818d;
+    background: rgba(105, 129, 141, 0.1);
+  }
+
+  :global([data-theme="light"]) .provenance-card {
+    background: #c2c6ca;
+    border-color: #8a9aa8;
+  }
+
+  :global([data-theme="light"]) .prov-title {
+    color: #2d3a45;
+  }
 </style>

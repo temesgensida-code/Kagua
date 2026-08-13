@@ -37,7 +37,6 @@
   let isPdfLoading = $state(false);
   let pdfError = $state<string | null>(null);
   let pageTexts = $state<Record<number, string>>({});
-  let viewMode = $state<'pdf' | 'text'>('pdf');
   let isExpanded = $state(false);
 
   let pulseIndex = $state<number | null>(null);
@@ -94,7 +93,6 @@
     } catch (err: any) {
       console.error('PDF rendering error:', err);
       pdfError = `Could not render PDF canvas: ${err.message}`;
-      viewMode = 'text';
     } finally {
       isPdfLoading = false;
     }
@@ -147,7 +145,7 @@
         highlightedPage = null;
       }, 2500);
 
-      if (isPdf && viewMode === 'pdf' && pdfDoc && pdfCanvasContainer) {
+      if (pdfDoc && pdfCanvasContainer) {
         // --- Improved Page Detection ---
         // Build a ranked list of candidate search terms from the violation
         const searchTerms: string[] = [];
@@ -253,102 +251,26 @@
     }
   }
 
-  type Segment =
-    | { type: 'normal'; text: string }
-    | {
-        type: 'violation';
-        text: string;
-        violation: MappedViolation & { originalIdx: number };
-        index: number;
-      };
-
-  // Compute text segments with highlighted spans for text mode fallback
-  let textSegments = $derived.by<Segment[]>(() => {
-    if (!rawText) return [{ type: 'normal', text: 'No text content available' }];
-
-    const validViolations = violations
-      .map((v, originalIdx) => ({ ...v, originalIdx }))
-      .filter((v): v is typeof v & { start_char: number; end_char: number } => 
-        typeof v.start_char === 'number' && typeof v.end_char === 'number' && v.end_char > v.start_char
-      )
-      .sort((a, b) => a.start_char - b.start_char);
-
-    if (validViolations.length === 0) {
-      return [{ type: 'normal', text: rawText }];
-    }
-
-    const segments: Segment[] = [];
-    let cursor = 0;
-
-    for (const v of validViolations) {
-      const start = Math.max(cursor, Math.min(v.start_char, rawText.length));
-      const end = Math.max(start, Math.min(v.end_char, rawText.length));
-
-      if (start > cursor) {
-        segments.push({ type: 'normal', text: rawText.slice(cursor, start) });
-      }
-
-      if (end > start) {
-        segments.push({
-          type: 'violation',
-          text: rawText.slice(start, end),
-          violation: v,
-          index: v.originalIdx
-        });
-        cursor = end;
-      }
-    }
-
-    if (cursor < rawText.length) {
-      segments.push({ type: 'normal', text: rawText.slice(cursor) });
-    }
-
-    return segments;
-  });
 </script>
 
 <div class="doc-viewer-panel" class:fullscreen={isExpanded}>
   <!-- Document Viewer Header -->
   <div class="viewer-header">
     <div class="title-box">
-      <span class="view-icon">{isPdf ? '📕' : '📄'}</span>
+      <span class="view-icon">📕</span>
       <h3 class="doc-filename">{filename}</h3>
-      <span class="char-length">{isPdf ? `${numPages} PAGES` : `${rawText ? rawText.length : 0} CHARS`}</span>
+      <span class="char-length">{numPages} PAGES</span>
     </div>
 
     <div class="header-actions">
-      <!-- PDF Viewer Controls -->
-      {#if isPdf && viewMode === 'pdf'}
-        <div class="pdf-controls">
-          <button type="button" class="ctrl-btn" onclick={() => changeZoom(-0.15)} title="Zoom Out">&minus;</button>
-          <span class="zoom-val">{Math.round(zoomLevel * 100)}%</span>
-          <button type="button" class="ctrl-btn" onclick={() => changeZoom(0.15)} title="Zoom In">&plus;</button>
-        </div>
-      {/if}
+      <!-- PDF Zoom Controls -->
+      <div class="pdf-controls">
+        <button type="button" class="ctrl-btn" onclick={() => changeZoom(-0.15)} title="Zoom Out">&minus;</button>
+        <span class="zoom-val">{Math.round(zoomLevel * 100)}%</span>
+        <button type="button" class="ctrl-btn" onclick={() => changeZoom(0.15)} title="Zoom In">&plus;</button>
+      </div>
 
-      <!-- Mode Toggle -->
-      {#if isPdf}
-        <div class="mode-toggle">
-          <button
-            type="button"
-            class="toggle-btn"
-            class:active={viewMode === 'pdf'}
-            onclick={() => (viewMode = 'pdf')}
-          >
-            PDF VIEWER
-          </button>
-          <button
-            type="button"
-            class="toggle-btn"
-            class:active={viewMode === 'text'}
-            onclick={() => (viewMode = 'text')}
-          >
-            TEXT VIEW
-          </button>
-        </div>
-      {/if}
-
-      <!-- Expand / Fullscreen Button -->
+      <!-- Expand / Fullscreen Button at Top-Right Edge -->
       <button
         type="button"
         class="expand-btn"
@@ -365,47 +287,21 @@
     </div>
   </div>
 
-  <!-- PDF / Text Viewer Content Surface -->
+  <!-- PDF Canvas Viewer Surface -->
   <div class="viewer-content" bind:this={viewerContainer}>
-    {#if isPdf && viewMode === 'pdf'}
-      {#if isPdfLoading}
-        <div class="pdf-loader">
-          <div class="spinner"></div>
-          <span>Rendering PDF pages...</span>
-        </div>
-      {:else if pdfError}
-        <div class="pdf-error-box">
-          <span class="err-icon">⚠️</span>
-          <span>{pdfError}</span>
-        </div>
-      {/if}
-
-      <div class="pdf-canvas-container" bind:this={pdfCanvasContainer}></div>
-    {:else}
-      <!-- Plain Text Fallback Viewer -->
-      <pre class="raw-text-surface">
-        {#each textSegments as seg}
-          {#if seg.type === 'normal'}
-            <span>{seg.text}</span>
-          {:else}
-            <mark
-              class="violation-mark severity-{seg.violation.severity}"
-              class:active={activeViolationIndex === seg.index}
-              class:pulse-highlight={pulseIndex === seg.index}
-              data-violation-idx={seg.index}
-              onclick={() => onSelectViolation(seg.index)}
-              onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && onSelectViolation(seg.index)}
-              role="button"
-              tabindex="0"
-              title="{seg.violation.rule}: {seg.violation.title}"
-            >
-              <span class="mark-label">[{seg.violation.severity.toUpperCase()}: {seg.violation.rule}]</span>
-              {seg.text}
-            </mark>
-          {/if}
-        {/each}
-      </pre>
+    {#if isPdfLoading}
+      <div class="pdf-loader">
+        <div class="spinner"></div>
+        <span>Rendering PDF pages...</span>
+      </div>
+    {:else if pdfError}
+      <div class="pdf-error-box">
+        <span class="err-icon">⚠️</span>
+        <span>{pdfError}</span>
+      </div>
     {/if}
+
+    <div class="pdf-canvas-container" bind:this={pdfCanvasContainer}></div>
   </div>
 </div>
 
@@ -549,31 +445,7 @@
     color: #d1dbe5;
   }
 
-  .mode-toggle {
-    display: flex;
-    background: rgba(0, 0, 0, 0.4);
-    padding: 2px;
-    border-radius: 4px;
-    border: 1px solid rgba(0, 240, 255, 0.2);
-  }
 
-  .toggle-btn {
-    font-family: var(--font-mono);
-    font-size: 0.65rem;
-    font-weight: 700;
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    padding: 4px 8px;
-    border-radius: 3px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  .toggle-btn.active {
-    background: var(--cyan-primary);
-    color: #050b14;
-  }
 
   .viewer-content {
     flex: 1;
@@ -689,77 +561,4 @@
     }
   }
 
-  .raw-text-surface {
-    font-family: 'JetBrains Mono', 'Fira Code', var(--font-mono), monospace;
-    font-size: 0.82rem;
-    line-height: 1.65;
-    color: #d1dbe5;
-    white-space: pre-wrap;
-    word-break: break-word;
-    margin: 0;
-    width: 100%;
-  }
-
-  .violation-mark {
-    position: relative;
-    padding: 2px 6px;
-    border-radius: 3px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: inline;
-  }
-
-  .violation-mark.severity-critical {
-    background: rgba(255, 42, 112, 0.18);
-    color: #ffa1be;
-    border: 1px solid rgba(255, 42, 112, 0.6);
-  }
-
-  .violation-mark.severity-warning {
-    background: rgba(255, 215, 0, 0.18);
-    color: #fff1a1;
-    border: 1px solid rgba(255, 215, 0, 0.6);
-  }
-
-  .violation-mark:hover {
-    filter: brightness(1.25);
-    box-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
-  }
-
-  .violation-mark.active {
-    outline: 2px solid var(--cyan-primary);
-    box-shadow: 0 0 16px var(--cyan-primary);
-    background: rgba(0, 240, 255, 0.25);
-    color: #ffffff;
-  }
-
-  .violation-mark.pulse-highlight {
-    animation: pulseGlow 0.8s ease-in-out infinite alternate;
-    outline: 3px solid var(--cyan-primary);
-    box-shadow: 0 0 25px var(--cyan-primary), 0 0 45px rgba(0, 240, 255, 0.7);
-    z-index: 10;
-  }
-
-  @keyframes pulseGlow {
-    0% {
-      transform: scale(1);
-      box-shadow: 0 0 10px var(--cyan-primary);
-    }
-    100% {
-      transform: scale(1.04);
-      box-shadow: 0 0 30px var(--cyan-primary), 0 0 50px rgba(0, 240, 255, 0.8);
-    }
-  }
-
-  .mark-label {
-    font-size: 0.6rem;
-    font-weight: 800;
-    font-family: var(--font-mono);
-    text-transform: uppercase;
-    margin-right: 4px;
-    padding: 1px 4px;
-    border-radius: 2px;
-    background: rgba(0, 0, 0, 0.4);
-    opacity: 0.85;
-  }
 </style>

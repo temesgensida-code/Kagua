@@ -1,11 +1,29 @@
 <script lang="ts">
-  import DocumentViewer from './DocumentViewer.svelte';
-  import { downloadPdfAuditReport, type AnalysisReport, type MappedViolation } from '$lib/services/api';
-  import type { Framework } from '$lib/data/sampleDocs';
-  import { soundState } from '$lib/services/sound.svelte';
+  import DocumentViewer from "./DocumentViewer.svelte";
+  import {
+    downloadPdfAuditReport,
+    type AnalysisReport,
+    type MappedViolation,
+  } from "$lib/services/api";
+  import type { Framework } from "$lib/data/sampleDocs";
+  import { soundState } from "$lib/services/sound.svelte";
+  import {
+    Download,
+    FileCode,
+    Lock,
+    FileText,
+    MapPin,
+    Search,
+  } from "@lucide/svelte";
 
   interface Props {
-    file: { name: string; size: string; type: string; content?: string; blob?: Blob | File };
+    file: {
+      name: string;
+      size: string;
+      type: string;
+      content?: string;
+      blob?: Blob | File;
+    };
     report?: AnalysisReport;
     frameworks: Framework[];
     onReset: () => void;
@@ -16,33 +34,29 @@
   let activeViolationIndex = $state<number | null>(null);
 
   // Raw text extracted or passed from file sample
-  let rawText = $derived(
-    report?.raw_text || file.content || ''
-  );
+  let rawText = $derived(report?.raw_text || file.content || "");
 
-  let activeFrameworks = $derived(frameworks.filter(f => f.active));
+  let activeFrameworks = $derived(frameworks.filter((f) => f.active));
 
   // Compute compliance score based on critical (-25) and warning (-10) violations
   let score = $derived.by(() => {
     if (!report) return 100;
-    const penalty = (report.critical_count * 25) + (report.warning_count * 10);
+    const penalty = report.critical_count * 25 + report.warning_count * 10;
     return Math.max(0, 100 - penalty);
   });
 
   let scoreColor = $derived(
-    score >= 80 ? '#00ff88' : score >= 50 ? '#ffd700' : '#ff2a70'
+    score >= 80 ? "#00ff88" : score >= 50 ? "#ffd700" : "#ff2a70",
   );
 
-  let violations = $derived<MappedViolation[]>(
-    report?.violations || []
-  );
+  let violations = $derived<MappedViolation[]>(report?.violations || []);
 
   let isDownloadingPdf = $state(false);
 
   async function handleDownloadPdf() {
     soundState.playClick();
     if (!report) {
-      alert('No active backend audit report available to generate PDF.');
+      alert("No active backend audit report available to generate PDF.");
       return;
     }
 
@@ -50,7 +64,7 @@
       isDownloadingPdf = true;
       await downloadPdfAuditReport({
         ...report,
-        raw_text: rawText
+        raw_text: rawText,
       });
     } catch (err: any) {
       alert(`PDF export error: ${err.message}`);
@@ -61,12 +75,16 @@
 
   function handleDownloadJson() {
     soundState.playClick();
-    const dataStr = JSON.stringify(report || { filename: file.name, violations, score }, null, 2);
-    const blob = new Blob([dataStr], { type: 'application/json' });
+    const dataStr = JSON.stringify(
+      report || { filename: file.name, violations, score },
+      null,
+      2,
+    );
+    const blob = new Blob([dataStr], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = `kagua_audit_${file.name.replace(/[^a-z0-9]/gi, '_')}.json`;
+    a.download = `kagua_audit_${file.name.replace(/[^a-z0-9]/gi, "_")}.json`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -75,12 +93,16 @@
     activeViolationIndex = activeViolationIndex === idx ? null : idx;
   }
 
-  function getFactDetails(item: any): { value: any; articleRef?: string; sourceText?: string } {
-    if (item && typeof item === 'object' && item !== null) {
+  function getFactDetails(item: any): {
+    value: any;
+    articleRef?: string;
+    sourceText?: string;
+  } {
+    if (item && typeof item === "object" && item !== null) {
       return {
         value: item.value ?? item,
         articleRef: item.article_reference,
-        sourceText: item.source_text
+        sourceText: item.source_text,
       };
     }
     return { value: item };
@@ -95,19 +117,30 @@
       <div class="file-details">
         <h3 class="file-title">{file.name}</h3>
         <span class="file-meta">
-          {file.size} &bull; 
+          {file.size} &bull;
           {#if report?.detected_jurisdiction}
-            Jurisdiction: <strong class="badge-accent">{report.detected_jurisdiction}</strong> &bull;
+            Jurisdiction: <strong class="badge-accent"
+              >{report.detected_jurisdiction}</strong
+            > &bull;
           {/if}
           {#if report?.suggested_domain}
-            Auto-Selected Domain: <strong class="badge-accent">{report.suggested_domain.toUpperCase()}</strong>
+            Auto-Selected Domain: <strong class="badge-accent"
+              >{report.suggested_domain.toUpperCase()}</strong
+            >
           {/if}
         </span>
       </div>
     </div>
 
     <div class="action-buttons">
-      <button type="button" class="btn-rescan" onclick={() => { soundState.playClick(); onReset(); }}>
+      <button
+        type="button"
+        class="btn-rescan"
+        onclick={() => {
+          soundState.playClick();
+          onReset();
+        }}
+      >
         &larr; SCAN ANOTHER DOCUMENT
       </button>
     </div>
@@ -129,46 +162,24 @@
 
     <!-- Right Panel: Compliance Summary & Violations Cards -->
     <div class="summary-column">
-      <!-- Score & Status Card -->
-      <div class="score-card">
-        <div class="score-dial" style="--score-color: {scoreColor}">
-          <svg class="score-ring" viewBox="0 0 100 100">
-            <circle cx="50" cy="50" r="42" stroke="rgba(255,255,255,0.06)" stroke-width="8" fill="none" />
-            <circle
-              cx="50"
-              cy="50"
-              r="42"
-              stroke={scoreColor}
-              stroke-width="8"
-              fill="none"
-              stroke-dasharray="263.89"
-              stroke-dashoffset={263.89 - (263.89 * score) / 100}
-              stroke-linecap="round"
-              style="transition: stroke-dashoffset 1s ease;"
-            />
-          </svg>
-          <div class="score-value-box">
-            <span class="score-num" style="color: {scoreColor}">{score}%</span>
-            <span class="score-label">COMPLIANCE</span>
-          </div>
-        </div>
-
-        <div class="score-status">
-          <span class="status-pill" style="background: {scoreColor}15; color: {scoreColor}; border: 1px solid {scoreColor}40">
-            {score >= 80 ? 'HIGH COMPLIANCE' : score >= 50 ? 'MODERATE RISK' : 'CRITICAL RISK'}
-          </span>
-        </div>
-
-        <div class="counts-row">
-          <span class="count-chip critical">CRITICAL: {report ? report.critical_count : violations.filter(v => v.severity === 'critical').length}</span>
-          <span class="count-chip warning">WARNING: {report ? report.warning_count : violations.filter(v => v.severity === 'warning').length}</span>
-        </div>
+      <!-- Standalone Severity Count Chips Outside Card -->
+      <div class="summary-counts-column">
+        <span class="count-chip critical">
+          CRITICAL: {report
+            ? report.critical_count
+            : violations.filter((v) => v.severity === "critical").length}
+        </span>
+        <span class="count-chip warning">
+          WARNING: {report
+            ? report.warning_count
+            : violations.filter((v) => v.severity === "warning").length}
+        </span>
       </div>
 
       <!-- Privacy-Preserving RAG Status Card -->
-      <div class="rag-privacy-card">
+      <!-- <div class="rag-privacy-card">
         <div class="rag-title-row">
-          <span class="rag-icon">🔒</span>
+          <span class="rag-icon"><Lock size={14} /></span>
           <h4 class="rag-title">PRIVACY-PRESERVING RAG ENGINE</h4>
           <span class="rag-live-badge">ACTIVE</span>
         </div>
@@ -186,21 +197,30 @@
             <span class="rag-stat-lbl">IN-MEMORY VECTOR RETRIEVAL</span>
           </div>
         </div>
-      </div>
+      </div> -->
 
       <!-- Action Export Panel -->
       <div class="export-card">
         <h4 class="export-title">AUDIT REPORT EXPORT</h4>
         <div class="export-buttons">
-          <button type="button" class="btn-pdf-export" disabled={isDownloadingPdf} onclick={handleDownloadPdf}>
+          <button
+            type="button"
+            class="btn-pdf-export"
+            disabled={isDownloadingPdf}
+            onclick={handleDownloadPdf}
+          >
             {#if isDownloadingPdf}
               GENERATING PDF...
             {:else}
-              📥 DOWNLOAD PDF REPORT
+              <Download size={14} /> DOWNLOAD PDF REPORT
             {/if}
           </button>
-          <button type="button" class="btn-json-export" onclick={handleDownloadJson}>
-            ⚙ EXPORT JSON
+          <button
+            type="button"
+            class="btn-json-export"
+            onclick={handleDownloadJson}
+          >
+            <FileCode size={14} /> EXPORT JSON
           </button>
         </div>
       </div>
@@ -208,7 +228,9 @@
       <!-- Violation Findings Cards List -->
       <div class="findings-card">
         <div class="findings-header">
-          <h4 class="findings-title">REASONER FINDINGS ({violations.length})</h4>
+          <h4 class="findings-title">
+            REASONER FINDINGS ({violations.length})
+          </h4>
           <span class="sub-info">Click card to jump to text offset</span>
         </div>
 
@@ -218,7 +240,8 @@
               class="finding-item severity-{violation.severity}"
               class:selected={activeViolationIndex === idx}
               onclick={() => selectViolation(idx)}
-              onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && selectViolation(idx)}
+              onkeydown={(e) =>
+                (e.key === "Enter" || e.key === " ") && selectViolation(idx)}
               role="button"
               tabindex="0"
             >
@@ -235,19 +258,22 @@
 
               {#if violation.recommendation}
                 <div class="finding-rec">
-                  <span class="rec-label">REMEDIATION:</span> {violation.recommendation}
+                  <span class="rec-label">REMEDIATION:</span>
+                  {violation.recommendation}
                 </div>
               {/if}
 
               {#if violation.article_citation}
                 <div class="statutory-citation-badge">
-                  📜 <strong>{violation.article_citation}</strong>
+                  <FileText size={13} />
+                  <strong>{violation.article_citation}</strong>
                 </div>
               {/if}
 
               {#if violation.statutory_text}
                 <div class="statutory-text-box">
-                  <span class="stat-lbl">STATUTORY PROVISION:</span> "{violation.statutory_text}"
+                  <span class="stat-lbl">STATUTORY PROVISION:</span>
+                  "{violation.statutory_text}"
                 </div>
               {/if}
 
@@ -261,10 +287,13 @@
                     selectViolation(idx);
                   }}
                 >
-                  📍 {activeViolationIndex === idx ? 'Highlighting in Document...' : 'Jump to Issue in Document'}
+                  <MapPin size={13} />
+                  {activeViolationIndex === idx
+                    ? "Highlighting in Document..."
+                    : "Jump to Issue in Document"}
                 </button>
 
-                {#if typeof violation.start_char === 'number' && typeof violation.end_char === 'number'}
+                {#if typeof violation.start_char === "number" && typeof violation.end_char === "number"}
                   <div class="offset-badge">
                     Chars {violation.start_char} &ndash; {violation.end_char}
                   </div>
@@ -279,7 +308,7 @@
       {#if report?.fact_provenance && Object.keys(report.fact_provenance).length > 0}
         <div class="provenance-card">
           <div class="provenance-header">
-            <span class="prov-icon">🔍</span>
+            <span class="prov-icon"><Search size={14} /></span>
             <h4 class="prov-title">FACT PROVENANCE & STATUTORY LINKAGE</h4>
           </div>
           <div class="provenance-list">
@@ -287,14 +316,20 @@
               {@const details = getFactDetails(factData)}
               <div class="prov-item">
                 <div class="prov-top">
-                  <span class="prov-key">{factKey}: <strong class="prov-val">{JSON.stringify(details.value)}</strong></span>
+                  <span class="prov-key"
+                    >{factKey}:
+                    <strong class="prov-val"
+                      >{JSON.stringify(details.value)}</strong
+                    ></span
+                  >
                   {#if details.articleRef}
                     <span class="prov-art-tag">{details.articleRef}</span>
                   {/if}
                 </div>
                 {#if details.sourceText}
                   <div class="prov-source">
-                    <span class="prov-src-lbl">Contract Source:</span> "{details.sourceText}"
+                    <span class="prov-src-lbl">Contract Source:</span>
+                    "{details.sourceText}"
                   </div>
                 {/if}
               </div>
@@ -316,8 +351,14 @@
   }
 
   @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   .result-header {
@@ -367,22 +408,23 @@
   }
 
   .btn-rescan {
-    background: transparent;
-    border: 1px solid rgba(0, 240, 255, 0.3);
-    color: var(--cyan-primary);
-    font-family: var(--font-mono);
-    font-size: 0.72rem;
-    font-weight: 600;
-    letter-spacing: 1px;
-    padding: 8px 16px;
+    background: #132e35;
+    border: 1px solid #1e434c;
+    color: #e2f1f8;
+    font-family: var(--font-title);
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    padding: 10px 20px;
     border-radius: 4px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .btn-rescan:hover {
-    background: rgba(0, 240, 255, 0.1);
-    border-color: var(--cyan-primary);
+    background: #1c3f48;
+    border-color: #2a5863;
+    transform: translateY(-2px) scale(1.02);
   }
 
   /* Split Screen Layout */
@@ -419,94 +461,37 @@
     padding-right: 4px;
   }
 
-  /* Score Dial Card */
-  .score-card {
-    background: #0d1724;
-    border: 1px solid rgba(0, 240, 255, 0.15);
-    border-radius: 6px;
-    padding: 1.25rem;
+  /* Standalone Severity Count Chips Outside Card (Plain Text) */
+  .summary-counts-column {
     display: flex;
     align-items: center;
-    justify-content: space-around;
-    gap: 1rem;
+    gap: 16px;
     flex-wrap: wrap;
-  }
-
-  .score-dial {
-    position: relative;
-    width: 90px;
-    height: 90px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .score-ring {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    transform: rotate(-90deg);
-  }
-
-  .score-value-box {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .score-num {
-    font-family: var(--font-title);
-    font-size: 1.4rem;
-    font-weight: 800;
-    line-height: 1;
-  }
-
-  .score-label {
-    font-family: var(--font-mono);
-    font-size: 0.55rem;
-    letter-spacing: 1px;
-    color: var(--text-muted);
-  }
-
-  .status-pill {
-    font-family: var(--font-mono);
-    font-size: 0.65rem;
-    font-weight: 700;
-    letter-spacing: 1px;
-    padding: 4px 10px;
-    border-radius: 12px;
-  }
-
-  .counts-row {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+    padding: 2px 0;
   }
 
   .count-chip {
     font-family: var(--font-mono);
-    font-size: 0.65rem;
-    font-weight: 700;
-    padding: 3px 8px;
-    border-radius: 3px;
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    background: none;
+    border: none;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
   }
 
   .count-chip.critical {
     color: #ff2a70;
-    background: rgba(255, 42, 112, 0.1);
-    border: 1px solid rgba(255, 42, 112, 0.3);
   }
 
   .count-chip.warning {
     color: #ffd700;
-    background: rgba(255, 215, 0, 0.1);
-    border: 1px solid rgba(255, 215, 0, 0.3);
   }
 
   /* Privacy RAG Card */
-  .rag-privacy-card {
+  /* .rag-privacy-card {
     background: rgba(4, 12, 22, 0.85);
     border: 1px solid rgba(0, 240, 255, 0.25);
     border-radius: 6px;
@@ -515,7 +500,7 @@
     flex-direction: column;
     gap: 0.6rem;
     box-shadow: inset 0 0 15px rgba(0, 240, 255, 0.04);
-  }
+  } */
 
   .rag-title-row {
     display: flex;
@@ -605,21 +590,23 @@
 
   .btn-pdf-export {
     flex: 1;
-    background: var(--cyan-primary);
-    color: #050b14;
-    border: none;
-    font-family: var(--font-mono);
-    font-size: 0.72rem;
+    font-family: var(--font-title);
+    font-size: 0.8rem;
     font-weight: 700;
-    letter-spacing: 1px;
-    padding: 10px 14px;
+    letter-spacing: 1.5px;
+    color: #e2f1f8;
+    background: #132e35;
+    border: 1px solid #1e434c;
     border-radius: 4px;
+    padding: 10px 14px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .btn-pdf-export:hover:not(:disabled) {
-    background: #5ce1e6;
+    background: #1c3f48;
+    border-color: #2a5863;
+    transform: translateY(-2px) scale(1.02);
   }
 
   .btn-pdf-export:disabled {
@@ -628,20 +615,23 @@
   }
 
   .btn-json-export {
-    background: transparent;
-    border: 1px solid rgba(0, 240, 255, 0.3);
-    color: var(--cyan-primary);
-    font-family: var(--font-mono);
-    font-size: 0.72rem;
-    font-weight: 600;
+    font-family: var(--font-title);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: #e2f1f8;
+    background: #132e35;
+    border: 1px solid #1e434c;
     padding: 10px 14px;
     border-radius: 4px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .btn-json-export:hover {
-    background: rgba(0, 240, 255, 0.1);
+    background: #1c3f48;
+    border-color: #2a5863;
+    transform: translateY(-2px) scale(1.02);
   }
 
   /* Findings List */
@@ -725,15 +715,15 @@
   }
 
   .badge-severity.severity-critical {
-    background: rgba(255, 42, 112, 0.2);
-    color: #ff2a70;
-    border: 1px solid #ff2a70;
+    background: #614041;
+    color: #e2f1f8;
+    border: 1px solid #7d4d4e;
   }
 
   .badge-severity.severity-warning {
-    background: rgba(255, 215, 0, 0.2);
-    color: #ffd700;
-    border: 1px solid #ffd700;
+    background: #614016;
+    color: #e2f1f8;
+    border: 1px solid #7d531d;
   }
 
   .finding-domain {
@@ -919,10 +909,10 @@
     font-family: var(--font-mono);
     font-size: 0.68rem;
     font-weight: 700;
-    color: var(--cyan-primary);
-    background: rgba(0, 240, 255, 0.08);
-    border: 1px solid rgba(0, 240, 255, 0.3);
-    padding: 4px 10px;
+    color: #e2f1f8;
+    background: #132e35;
+    border: 1px solid #1e434c;
+    padding: 6px 14px;
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
@@ -932,14 +922,14 @@
   }
 
   .jump-doc-btn:hover {
-    background: rgba(0, 240, 255, 0.2);
-    border-color: var(--cyan-primary);
+    background: #1c3f48;
+    border-color: #2a5863;
     transform: translateY(-1px);
   }
 
   .jump-doc-btn.active {
-    background: var(--cyan-primary);
-    color: #040c16;
-    border-color: var(--cyan-primary);
+    background: #1e434c;
+    color: #ffffff;
+    border-color: #2a5863;
   }
 </style>

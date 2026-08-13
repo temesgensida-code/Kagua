@@ -185,27 +185,24 @@
     min-height: 280px;
     background: #0d1724;
     background: radial-gradient(circle at center, #111d2e 0%, #0b1420 100%);
-    border: 2px dashed rgba(0, 240, 255, 0.35);
+    border: 2px dashed #1e434c;
     border-radius: 8px;
     padding: 2.5rem 1.5rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow:
-      0 10px 30px rgba(0, 0, 0, 0.5),
-      inset 0 0 20px rgba(0, 240, 255, 0.02);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
     transition: all 0.25s ease;
     overflow: hidden;
   }
 
   .dropzone-panel:hover {
-    border-color: rgba(0, 240, 255, 0.65);
+    border-color: #2a5863;
   }
 
   .dropzone-panel.dragging {
-    border: 2px dashed var(--cyan-primary);
-    background: rgba(0, 240, 255, 0.08);
-    box-shadow: 0 0 30px rgba(0, 240, 255, 0.3);
+    border: 2px dashed #2a5863;
+    background: rgba(19, 46, 53, 0.3);
   }
 
   .hidden-input {
@@ -237,23 +234,19 @@
     align-items: center;
     justify-content: center;
     margin-bottom: 1.5rem;
-    box-shadow: inset 0 0 12px rgba(30, 67, 76, 0.3);
     transition:
       transform 0.3s ease,
-      border-color 0.3s ease,
-      box-shadow 0.3s ease;
+      border-color 0.3s ease;
   }
 
   .dropzone-panel:hover .icon-container {
     transform: translateY(-4px);
     border-color: #2a5d6a;
-    box-shadow: 0 0 15px rgba(30, 67, 76, 0.4);
   }
 
   .doc-icon {
     width: 32px;
     height: 32px;
-    filter: drop-shadow(0 0 6px rgba(0, 240, 255, 0.6));
   }
 
   .drop-title {

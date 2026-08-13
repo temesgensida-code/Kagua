@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import type { MappedViolation } from '$lib/services/api';
   import { soundState } from '$lib/services/sound.svelte';
+  import { FileText, Maximize2, Minimize2, AlertTriangle } from '@lucide/svelte';
 
   let pdfjsLib = $state<any>(null);
 
@@ -260,7 +261,7 @@
   <!-- Document Viewer Header -->
   <div class="viewer-header">
     <div class="title-box">
-      <span class="view-icon">📕</span>
+      <span class="view-icon"><FileText size={15} /></span>
       <h3 class="doc-filename">{filename}</h3>
       <span class="char-length">{numPages} PAGES</span>
     </div>
@@ -285,9 +286,9 @@
         title={isExpanded ? 'Exit Fullscreen View (Esc)' : 'Expand PDF Card to Fullscreen'}
       >
         {#if isExpanded}
-          <span class="btn-icon">↙↗</span> EXIT
+          <span class="btn-icon"><Minimize2 size={13} /></span> EXIT
         {:else}
-          <span class="btn-icon">⛶</span> EXPAND
+          <span class="btn-icon"><Maximize2 size={13} /></span> EXPAND
         {/if}
       </button>
     </div>
@@ -302,7 +303,7 @@
       </div>
     {:else if pdfError}
       <div class="pdf-error-box">
-        <span class="err-icon">⚠️</span>
+        <span class="err-icon"><AlertTriangle size={16} /></span>
         <span>{pdfError}</span>
       </div>
     {/if}
@@ -357,33 +358,35 @@
   .expand-btn {
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 4px;
     font-family: var(--font-mono);
     font-size: 0.68rem;
     font-weight: 700;
-    background: rgba(0, 240, 255, 0.08);
-    border: 1px solid rgba(0, 240, 255, 0.3);
-    color: var(--cyan-primary);
-    padding: 4px 10px;
-    border-radius: 4px;
+    background: rgba(13, 23, 36, 0.95);
+    border: 1px solid #132E35;
+    color: #e2f1f8;
+    padding: 3px 8px;
+    border-radius: 6px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.25s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   }
 
   .expand-btn:hover {
-    background: rgba(0, 240, 255, 0.22);
-    border-color: var(--cyan-primary);
+    background: #132E35;
+    border-color: #1e434c;
     color: #ffffff;
   }
 
   .expand-btn.expanded {
-    background: rgba(255, 42, 112, 0.2);
-    border-color: rgba(255, 42, 112, 0.6);
-    color: #ff9ec4;
+    background: #132E35;
+    border-color: #1e434c;
+    color: #e2f1f8;
   }
 
   .expand-btn.expanded:hover {
-    background: rgba(255, 42, 112, 0.35);
+    background: #1c3f48;
+    border-color: #2a5863;
     color: #ffffff;
   }
 

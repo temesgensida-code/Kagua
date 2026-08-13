@@ -1,15 +1,24 @@
 <script lang="ts">
-  import { SAMPLE_DOCS, type SampleDoc } from '$lib/data/sampleDocs';
-  import type { ProgressEvent } from '$lib/services/api';
+  import { SAMPLE_DOCS, type SampleDoc } from "$lib/data/sampleDocs";
+  import type { ProgressEvent } from "$lib/services/api";
 
   interface Props {
     isScanning: boolean;
     progressEvents: ProgressEvent[];
     currentStageMessage: string;
-    onFileSelected: (fileData: Blob | File, filename: string, sampleContent?: string) => void;
+    onFileSelected: (
+      fileData: Blob | File,
+      filename: string,
+      sampleContent?: string,
+    ) => void;
   }
 
-  let { isScanning = false, progressEvents = [], currentStageMessage = '', onFileSelected }: Props = $props();
+  let {
+    isScanning = false,
+    progressEvents = [],
+    currentStageMessage = "",
+    onFileSelected,
+  }: Props = $props();
 
   let isDragging = $state(false);
   let fileInput: HTMLInputElement;
@@ -38,7 +47,7 @@
     if (input.files && input.files.length > 0) {
       const file = input.files[0];
       onFileSelected(file, file.name);
-      input.value = '';
+      input.value = "";
     }
   }
 
@@ -47,7 +56,7 @@
   }
 
   function selectSample(sample: SampleDoc) {
-    const blob = new Blob([sample.content], { type: 'text/plain' });
+    const blob = new Blob([sample.content], { type: "text/plain" });
     onFileSelected(blob, sample.filename, sample.content);
   }
 </script>
@@ -80,7 +89,10 @@
       <div class="scan-laser"></div>
       <div class="scanning-hud">
         <div class="spinner"></div>
-        <span class="scan-stage">{currentStageMessage || 'CONNECTING TO RUST ANALYSIS PIPELINE...'}</span>
+        <span class="scan-stage"
+          >{currentStageMessage ||
+            "CONNECTING TO RUST ANALYSIS PIPELINE..."}</span
+        >
 
         <!-- Step-by-Step Progress Events Log -->
         <div class="progress-log">
@@ -96,7 +108,12 @@
 
     <div class="dropzone-content" class:fade={isScanning}>
       <div class="icon-container">
-        <svg class="doc-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <svg
+          class="doc-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
           <path
             d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z"
             stroke="#00f0ff"
@@ -124,7 +141,8 @@
       <h2 class="drop-title">DROP DOCUMENT FOR COMPLIANCE REASONING</h2>
 
       <p class="file-specs">
-        .TXT &bull; .PDF &bull; .DOC &bull; .DOCX &bull; .MD &mdash; IN-MEMORY STREAMING (NO DISK PERSISTENCE)
+        .TXT &bull; .PDF &bull; .DOC &bull; .DOCX &bull; .MD &mdash; IN-MEMORY
+        STREAMING (NO DISK PERSISTENCE)
       </p>
 
       <button type="button" class="btn-browse" onclick={triggerBrowse}>
@@ -138,7 +156,11 @@
     <span class="samples-label">TRY WITH SAMPLE DOCS:</span>
     <div class="samples-list">
       {#each SAMPLE_DOCS as sample}
-        <button type="button" class="sample-btn" onclick={() => selectSample(sample)}>
+        <button
+          type="button"
+          class="sample-btn"
+          onclick={() => selectSample(sample)}
+        >
           <span class="sample-ext">{sample.type}</span>
           <span class="sample-name">{sample.filename}</span>
         </button>
@@ -150,6 +172,8 @@
 <style>
   .dropzone-wrapper {
     width: 100%;
+    max-width: 680px;
+    margin: 0 auto;
     display: flex;
     flex-direction: column;
     gap: 1rem;
@@ -158,22 +182,28 @@
   .dropzone-panel {
     position: relative;
     width: 100%;
-    min-height: 320px;
+    min-height: 280px;
     background: #0d1724;
     background: radial-gradient(circle at center, #111d2e 0%, #0b1420 100%);
-    border: 1px solid rgba(0, 240, 255, 0.15);
-    border-radius: 6px;
-    padding: 3rem 2rem;
+    border: 2px dashed rgba(0, 240, 255, 0.35);
+    border-radius: 8px;
+    padding: 2.5rem 1.5rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(0, 240, 255, 0.02);
+    box-shadow:
+      0 10px 30px rgba(0, 0, 0, 0.5),
+      inset 0 0 20px rgba(0, 240, 255, 0.02);
     transition: all 0.25s ease;
     overflow: hidden;
   }
 
+  .dropzone-panel:hover {
+    border-color: rgba(0, 240, 255, 0.65);
+  }
+
   .dropzone-panel.dragging {
-    border-color: var(--cyan-primary);
+    border: 2px dashed var(--cyan-primary);
     background: rgba(0, 240, 255, 0.08);
     box-shadow: 0 0 30px rgba(0, 240, 255, 0.3);
   }
@@ -232,7 +262,9 @@
     justify-content: center;
     margin-bottom: 1.5rem;
     box-shadow: inset 0 0 12px rgba(0, 240, 255, 0.15);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    transition:
+      transform 0.3s ease,
+      box-shadow 0.3s ease;
   }
 
   .dropzone-panel:hover .icon-container {
@@ -291,15 +323,26 @@
     left: 0;
     right: 0;
     height: 3px;
-    background: linear-gradient(90deg, transparent 0%, var(--cyan-primary) 50%, transparent 100%);
-    box-shadow: 0 0 15px var(--cyan-primary), 0 0 30px var(--cyan-primary);
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      var(--cyan-primary) 50%,
+      transparent 100%
+    );
+    box-shadow:
+      0 0 15px var(--cyan-primary),
+      0 0 30px var(--cyan-primary);
     animation: scanline 1.8s ease-in-out infinite alternate;
     z-index: 5;
   }
 
   @keyframes scanline {
-    0% { top: 5%; }
-    100% { top: 95%; }
+    0% {
+      top: 5%;
+    }
+    100% {
+      top: 95%;
+    }
   }
 
   .scanning-hud {
@@ -322,7 +365,9 @@
   }
 
   @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   .scan-stage {

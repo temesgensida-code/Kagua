@@ -4,7 +4,7 @@
   import type { Framework } from '$lib/data/sampleDocs';
 
   interface Props {
-    file: { name: string; size: string; type: string; content?: string };
+    file: { name: string; size: string; type: string; content?: string; blob?: Blob | File };
     report?: AnalysisReport;
     frameworks: Framework[];
     onReset: () => void;
@@ -116,6 +116,7 @@
     <div class="viewer-column">
       <DocumentViewer
         filename={file.name}
+        fileBlob={file.blob}
         {rawText}
         {violations}
         {activeViolationIndex}
@@ -385,26 +386,35 @@
   /* Split Screen Layout */
   .split-screen-grid {
     display: grid;
-    grid-template-columns: 1fr 440px;
+    grid-template-columns: 1fr 450px;
     gap: 1.25rem;
-    min-height: 600px;
+    height: calc(100vh - 170px);
+    min-height: 650px;
+    max-height: 850px;
   }
 
   @media (max-width: 1024px) {
     .split-screen-grid {
       grid-template-columns: 1fr;
+      height: auto;
+      max-height: none;
     }
   }
 
   .viewer-column {
     display: flex;
     flex-direction: column;
+    height: 100%;
+    overflow: hidden;
   }
 
   .summary-column {
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
+    height: 100%;
+    overflow-y: auto;
+    padding-right: 4px;
   }
 
   /* Score Dial Card */

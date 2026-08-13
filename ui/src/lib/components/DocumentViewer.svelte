@@ -1,17 +1,180 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import type { MappedViolation } from '$lib/services/api';
+
+  let pdfjsLib = $state<any>(null);
+
+  onMount(async () => {
+    if (typeof window !== 'undefined') {
+      const pdfModule = await import('pdfjs-dist');
+      pdfjsLib = pdfModule;
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+    }
+  });
 
   interface Props {
     filename: string;
+    fileBlob?: Blob | File;
     rawText: string;
     violations: MappedViolation[];
     activeViolationIndex: number | null;
     onSelectViolation: (index: number) => void;
   }
 
-  let { filename, rawText, violations, activeViolationIndex, onSelectViolation }: Props = $props();
+  let { filename, fileBlob, rawText, violations, activeViolationIndex, onSelectViolation }: Props = $props();
 
-  let viewerContainer: HTMLDivElement;
+  let viewerContainer = $state<HTMLDivElement | undefined>(undefined);
+  let pdfCanvasContainer = $state<HTMLDivElement | undefined>(undefined);
+
+  let isPdf = $derived(
+    Boolean((fileBlob && fileBlob.type.includes('pdf')) || filename.toLowerCase().endsWith('.pdf'))
+  );
+
+  let numPages = $state(0);
+  let currentPage = $state(1);
+  let zoomLevel = $state(1.15);
+  let pdfDoc = $state<any>(null);
+  let isPdfLoading = $state(false);
+  let pdfError = $state<string | null>(null);
+  let pageTexts = $state<Record<number, string>>({});
+  let viewMode = $state<'pdf' | 'text'>('pdf');
+
+  let pulseIndex = $state<number | null>(null);
+  let pulseTimer: any = null;
+  let highlightedPage = $state<number | null>(null);
+
+  // Load PDF when fileBlob or isPdf changes
+  $effect(() => {
+    if (isPdf && fileBlob) {
+      if (!pdfjsLib) {
+        import('pdfjs-dist').then(mod => {
+          pdfjsLib = mod;
+          pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+          loadPdf(fileBlob);
+        });
+      } else {
+        loadPdf(fileBlob);
+      }
+    }
+  });
+
+  async function loadPdf(blob: Blob | File) {
+    if (!pdfjsLib) return;
+    try {
+      isPdfLoading = true;
+      pdfError = null;
+      pageTexts = {};
+      const arrayBuffer = await blob.arrayBuffer();
+      const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+      pdfDoc = await loadingTask.promise;
+      numPages = pdfDoc.numPages;
+
+      // Extract text content per page for violation snippet matching
+      for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+        const page = await pdfDoc.getPage(pageNum);
+        const textContent = await page.getTextContent();
+        const textItems = textContent.items.map((item: any) => item.str).join(' ');
+        pageTexts[pageNum] = textItems.toLowerCase();
+      }
+
+      await renderPdfPages();
+    } catch (err: any) {
+      console.error('PDF rendering error:', err);
+      pdfError = `Could not render PDF canvas: ${err.message}`;
+      viewMode = 'text';
+    } finally {
+      isPdfLoading = false;
+    }
+  }
+
+  async function renderPdfPages() {
+    if (!pdfDoc || !pdfCanvasContainer) return;
+    pdfCanvasContainer.innerHTML = '';
+
+    for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+      const page = await pdfDoc.getPage(pageNum);
+      const viewport = page.getViewport({ scale: zoomLevel });
+
+      const pageWrapper = document.createElement('div');
+      pageWrapper.className = 'pdf-page-wrapper';
+      pageWrapper.dataset.pageNum = String(pageNum);
+
+      const canvas = document.createElement('canvas');
+      canvas.className = 'pdf-canvas';
+      const context = canvas.getContext('2d');
+      canvas.height = viewport.height;
+      canvas.width = viewport.width;
+
+      const pageBadge = document.createElement('div');
+      pageBadge.className = 'pdf-page-number-badge';
+      pageBadge.innerText = `PAGE ${pageNum} OF ${numPages}`;
+
+      pageWrapper.appendChild(canvas);
+      pageWrapper.appendChild(pageBadge);
+      pdfCanvasContainer.appendChild(pageWrapper);
+
+      const renderContext = {
+        canvasContext: context!,
+        viewport: viewport
+      };
+      await page.render(renderContext).promise;
+    }
+  }
+
+  // Handle active violation scroll and temporary highlight pulse
+  $effect(() => {
+    if (activeViolationIndex !== null && violations[activeViolationIndex]) {
+      const v = violations[activeViolationIndex];
+      const snippet = (v.snippet || v.title || v.description || '').toLowerCase();
+
+      // Trigger temporary 2.5s pulse highlight
+      pulseIndex = activeViolationIndex;
+      if (pulseTimer) clearTimeout(pulseTimer);
+      pulseTimer = setTimeout(() => {
+        pulseIndex = null;
+        highlightedPage = null;
+      }, 2500);
+
+      if (isPdf && viewMode === 'pdf' && pdfDoc && pdfCanvasContainer) {
+        // Find which PDF page contains this violation snippet
+        let matchedPageNum = 1;
+        for (let p = 1; p <= numPages; p++) {
+          if (pageTexts[p] && snippet) {
+            const shortSnip = snippet.slice(0, 35).trim();
+            if (pageTexts[p].includes(shortSnip) || pageTexts[p].includes(v.title.toLowerCase())) {
+              matchedPageNum = p;
+              break;
+            }
+          }
+        }
+        highlightedPage = matchedPageNum;
+        currentPage = matchedPageNum;
+
+        // Scroll PDF container to target page wrapper
+        const targetPageEl = pdfCanvasContainer.querySelector(`[data-page-num="${matchedPageNum}"]`) as HTMLElement;
+        if (targetPageEl) {
+          targetPageEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          targetPageEl.classList.add('pulse-page-highlight');
+          setTimeout(() => {
+            targetPageEl.classList.remove('pulse-page-highlight');
+          }, 2500);
+        }
+      } else if (viewerContainer) {
+        // Fallback text view scroll
+        const targetEl = viewerContainer.querySelector(`[data-violation-idx="${activeViolationIndex}"]`);
+        if (targetEl) {
+          targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }
+    }
+  });
+
+  function changeZoom(delta: number) {
+    zoomLevel = Math.max(0.6, Math.min(2.5, zoomLevel + delta));
+    if (pdfDoc) {
+      renderPdfPages();
+    }
+  }
 
   type Segment =
     | { type: 'normal'; text: string }
@@ -22,11 +185,10 @@
         index: number;
       };
 
-  // Compute text segments with highlighted spans
+  // Compute text segments with highlighted spans for text mode fallback
   let textSegments = $derived.by<Segment[]>(() => {
     if (!rawText) return [{ type: 'normal', text: 'No text content available' }];
 
-    // Sort violations with valid character offsets
     const validViolations = violations
       .map((v, originalIdx) => ({ ...v, originalIdx }))
       .filter((v): v is typeof v & { start_char: number; end_char: number } => 
@@ -46,10 +208,7 @@
       const end = Math.max(start, Math.min(v.end_char, rawText.length));
 
       if (start > cursor) {
-        segments.push({
-          type: 'normal',
-          text: rawText.slice(cursor, start)
-        });
+        segments.push({ type: 'normal', text: rawText.slice(cursor, start) });
       }
 
       if (end > start) {
@@ -64,32 +223,10 @@
     }
 
     if (cursor < rawText.length) {
-      segments.push({
-        type: 'normal',
-        text: rawText.slice(cursor)
-      });
+      segments.push({ type: 'normal', text: rawText.slice(cursor) });
     }
 
     return segments;
-  });
-
-  let pulseIndex = $state<number | null>(null);
-  let pulseTimer: any = null;
-
-  $effect(() => {
-    if (activeViolationIndex !== null && viewerContainer) {
-      const targetEl = viewerContainer.querySelector(`[data-violation-idx="${activeViolationIndex}"]`);
-      if (targetEl) {
-        targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-
-      // Trigger temporary 2.5s pulse highlight
-      pulseIndex = activeViolationIndex;
-      if (pulseTimer) clearTimeout(pulseTimer);
-      pulseTimer = setTimeout(() => {
-        pulseIndex = null;
-      }, 2500);
-    }
   });
 </script>
 
@@ -97,44 +234,84 @@
   <!-- Document Viewer Header -->
   <div class="viewer-header">
     <div class="title-box">
-      <span class="view-icon">📄</span>
+      <span class="view-icon">{isPdf ? '📕' : '📄'}</span>
       <h3 class="doc-filename">{filename}</h3>
-      <span class="char-length">{rawText ? rawText.length : 0} CHARS</span>
+      <span class="char-length">{isPdf ? `${numPages} PAGES` : `${rawText ? rawText.length : 0} CHARS`}</span>
     </div>
-    <div class="legend-box">
-      <span class="legend-item legend-critical">
-        <span class="dot"></span> CRITICAL ({violations.filter(v => v.severity === 'critical').length})
-      </span>
-      <span class="legend-item legend-warning">
-        <span class="dot"></span> WARNING ({violations.filter(v => v.severity === 'warning').length})
-      </span>
-    </div>
+
+    <!-- PDF Viewer Controls -->
+    {#if isPdf && viewMode === 'pdf'}
+      <div class="pdf-controls">
+        <button type="button" class="ctrl-btn" onclick={() => changeZoom(-0.15)} title="Zoom Out">&minus;</button>
+        <span class="zoom-val">{Math.round(zoomLevel * 100)}%</span>
+        <button type="button" class="ctrl-btn" onclick={() => changeZoom(0.15)} title="Zoom In">&plus;</button>
+      </div>
+    {/if}
+
+    <!-- Mode Toggle -->
+    {#if isPdf}
+      <div class="mode-toggle">
+        <button
+          type="button"
+          class="toggle-btn"
+          class:active={viewMode === 'pdf'}
+          onclick={() => (viewMode = 'pdf')}
+        >
+          PDF VIEWER
+        </button>
+        <button
+          type="button"
+          class="toggle-btn"
+          class:active={viewMode === 'text'}
+          onclick={() => (viewMode = 'text')}
+        >
+          TEXT VIEW
+        </button>
+      </div>
+    {/if}
   </div>
 
-  <!-- Document Text Surface -->
+  <!-- PDF / Text Viewer Content Surface -->
   <div class="viewer-content" bind:this={viewerContainer}>
-    <pre class="raw-text-surface">
-      {#each textSegments as seg}
-        {#if seg.type === 'normal'}
-          <span>{seg.text}</span>
-        {:else}
-          <mark
-            class="violation-mark severity-{seg.violation.severity}"
-            class:active={activeViolationIndex === seg.index}
-            class:pulse-highlight={pulseIndex === seg.index}
-            data-violation-idx={seg.index}
-            onclick={() => onSelectViolation(seg.index)}
-            onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && onSelectViolation(seg.index)}
-            role="button"
-            tabindex="0"
-            title="{seg.violation.rule}: {seg.violation.title}"
-          >
-            <span class="mark-label">[{seg.violation.severity.toUpperCase()}: {seg.violation.rule}]</span>
-            {seg.text}
-          </mark>
-        {/if}
-      {/each}
-    </pre>
+    {#if isPdf && viewMode === 'pdf'}
+      {#if isPdfLoading}
+        <div class="pdf-loader">
+          <div class="spinner"></div>
+          <span>Rendering PDF pages...</span>
+        </div>
+      {:else if pdfError}
+        <div class="pdf-error-box">
+          <span class="err-icon">⚠️</span>
+          <span>{pdfError}</span>
+        </div>
+      {/if}
+
+      <div class="pdf-canvas-container" bind:this={pdfCanvasContainer}></div>
+    {:else}
+      <!-- Plain Text Fallback Viewer -->
+      <pre class="raw-text-surface">
+        {#each textSegments as seg}
+          {#if seg.type === 'normal'}
+            <span>{seg.text}</span>
+          {:else}
+            <mark
+              class="violation-mark severity-{seg.violation.severity}"
+              class:active={activeViolationIndex === seg.index}
+              class:pulse-highlight={pulseIndex === seg.index}
+              data-violation-idx={seg.index}
+              onclick={() => onSelectViolation(seg.index)}
+              onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && onSelectViolation(seg.index)}
+              role="button"
+              tabindex="0"
+              title="{seg.violation.rule}: {seg.violation.title}"
+            >
+              <span class="mark-label">[{seg.violation.severity.toUpperCase()}: {seg.violation.rule}]</span>
+              {seg.text}
+            </mark>
+          {/if}
+        {/each}
+      </pre>
+    {/if}
   </div>
 </div>
 
@@ -143,7 +320,7 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    min-height: 520px;
+    min-height: 580px;
     background: #080f17;
     border: 1px solid rgba(0, 240, 255, 0.18);
     border-radius: 6px;
@@ -155,7 +332,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0.85rem 1.25rem;
+    padding: 0.75rem 1.25rem;
     background: rgba(13, 23, 36, 0.95);
     border-bottom: 1px solid rgba(0, 240, 255, 0.15);
     flex-wrap: wrap;
@@ -169,7 +346,7 @@
   }
 
   .view-icon {
-    font-size: 1rem;
+    font-size: 1.1rem;
   }
 
   .doc-filename {
@@ -178,6 +355,7 @@
     font-weight: 700;
     color: #ffffff;
     letter-spacing: 0.5px;
+    margin: 0;
   }
 
   .char-length {
@@ -189,51 +367,174 @@
     border-radius: 3px;
   }
 
-  .legend-box {
+  .pdf-controls {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 6px;
+    background: rgba(0, 0, 0, 0.4);
+    padding: 2px 8px;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
   }
 
-  .legend-item {
+  .ctrl-btn {
+    background: none;
+    border: none;
+    color: var(--cyan-primary);
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 0 4px;
+  }
+
+  .ctrl-btn:hover {
+    color: #ffffff;
+  }
+
+  .zoom-val {
     font-family: var(--font-mono);
-    font-size: 0.68rem;
-    font-weight: 700;
+    font-size: 0.7rem;
+    color: #d1dbe5;
+  }
+
+  .mode-toggle {
     display: flex;
-    align-items: center;
-    gap: 5px;
+    background: rgba(0, 0, 0, 0.4);
+    padding: 2px;
+    border-radius: 4px;
+    border: 1px solid rgba(0, 240, 255, 0.2);
   }
 
-  .legend-critical {
-    color: #ff2a70;
+  .toggle-btn {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    font-weight: 700;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    padding: 4px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s ease;
   }
 
-  .legend-warning {
-    color: #ffd700;
-  }
-
-  .dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    display: inline-block;
-  }
-
-  .legend-critical .dot {
-    background: #ff2a70;
-    box-shadow: 0 0 6px #ff2a70;
-  }
-
-  .legend-warning .dot {
-    background: #ffd700;
-    box-shadow: 0 0 6px #ffd700;
+  .toggle-btn.active {
+    background: var(--cyan-primary);
+    color: #050b14;
   }
 
   .viewer-content {
     flex: 1;
     overflow-y: auto;
-    padding: 1.5rem;
+    padding: 1.25rem;
     background: #060b12;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 240, 255, 0.4) rgba(6, 11, 18, 0.9);
+  }
+
+  .viewer-content::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .viewer-content::-webkit-scrollbar-track {
+    background: rgba(6, 11, 18, 0.9);
+  }
+
+  .viewer-content::-webkit-scrollbar-thumb {
+    background: rgba(0, 240, 255, 0.4);
+    border-radius: 3px;
+  }
+
+  .viewer-content::-webkit-scrollbar-thumb:hover {
+    background: var(--cyan-primary);
+  }
+
+  .pdf-loader {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 3rem;
+    color: var(--cyan-primary);
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+  }
+
+  .spinner {
+    width: 28px;
+    height: 28px;
+    border: 3px solid rgba(0, 240, 255, 0.2);
+    border-top-color: var(--cyan-primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .pdf-error-box {
+    color: #ff2a70;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    padding: 1rem;
+    text-align: center;
+  }
+
+  .pdf-canvas-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    width: 100%;
+    align-items: center;
+  }
+
+  :global(.pdf-page-wrapper) {
+    position: relative;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+    border-radius: 4px;
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease, outline 0.3s ease;
+    background: #ffffff;
+  }
+
+  :global(.pdf-canvas) {
+    display: block;
+    max-width: 100%;
+    height: auto;
+  }
+
+  :global(.pdf-page-number-badge) {
+    position: absolute;
+    bottom: 8px;
+    right: 12px;
+    background: rgba(0, 0, 0, 0.7);
+    color: #ffffff;
+    font-family: monospace;
+    font-size: 0.65rem;
+    padding: 2px 8px;
+    border-radius: 3px;
+    pointer-events: none;
+  }
+
+  :global(.pdf-page-wrapper.pulse-page-highlight) {
+    outline: 4px solid var(--cyan-primary) !important;
+    box-shadow: 0 0 35px var(--cyan-primary), 0 0 60px rgba(0, 240, 255, 0.7) !important;
+    animation: pdfPageGlow 0.8s ease-in-out infinite alternate !important;
+  }
+
+  @keyframes pdfPageGlow {
+    0% {
+      transform: scale(1);
+    }
+    100% {
+      transform: scale(1.02);
+    }
   }
 
   .raw-text-surface {
@@ -244,6 +545,7 @@
     white-space: pre-wrap;
     word-break: break-word;
     margin: 0;
+    width: 100%;
   }
 
   .violation-mark {

@@ -10,7 +10,7 @@
   let currentStageMessage = $state('');
   let progressEvents = $state<ProgressEvent[]>([]);
   let report = $state<AnalysisReport | undefined>(undefined);
-  let selectedFile = $state<{ name: string; size: string; type: string; content?: string } | null>(null);
+  let selectedFile = $state<{ name: string; size: string; type: string; content?: string; blob?: Blob | File } | null>(null);
 
   function toggleFramework(id: string) {
     frameworks = frameworks.map(fw =>
@@ -29,7 +29,8 @@
       name: filename,
       size: sizeMB,
       type: ext,
-      content: sampleContent
+      content: sampleContent,
+      blob: fileData
     };
 
     isScanning = true;

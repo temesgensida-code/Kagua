@@ -125,7 +125,6 @@
   $effect(() => {
     if (activeViolationIndex !== null && violations[activeViolationIndex]) {
       const v = violations[activeViolationIndex];
-      const snippet = (v.snippet || v.title || v.description || '').toLowerCase();
 
       // Trigger temporary 2.5s pulse highlight
       pulseIndex = activeViolationIndex;
@@ -136,24 +135,89 @@
       }, 2500);
 
       if (isPdf && viewMode === 'pdf' && pdfDoc && pdfCanvasContainer) {
-        // Find which PDF page contains this violation snippet
-        let matchedPageNum = 1;
+        // --- Improved Page Detection ---
+        // Build a ranked list of candidate search terms from the violation
+        const searchTerms: string[] = [];
+
+        // 1. Try the snippet text first (most specific)
+        if (v.snippet) {
+          const snippetWords = v.snippet.toLowerCase().replace(/[^\w\s]/g, ' ').trim();
+          if (snippetWords.length > 10) searchTerms.push(snippetWords.slice(0, 60));
+          // Also try first 30 chars
+          if (snippetWords.length > 6) searchTerms.push(snippetWords.slice(0, 30));
+        }
+
+        // 2. Try individual meaningful keywords from snippet
+        if (v.snippet) {
+          const words = v.snippet.toLowerCase()
+            .replace(/[^\w\s]/g, ' ')
+            .split(/\s+/)
+            .filter(w => w.length > 5)
+            .slice(0, 5);
+          searchTerms.push(...words);
+        }
+
+        // 3. Try title keywords
+        if (v.title) {
+          const titleWords = v.title.toLowerCase()
+            .replace(/[^\w\s]/g, ' ')
+            .split(/\s+/)
+            .filter(w => w.length > 4);
+          searchTerms.push(...titleWords);
+        }
+
+        // 4. Try description keywords
+        if (v.description) {
+          const descWords = v.description.toLowerCase()
+            .replace(/[^\w\s]/g, ' ')
+            .split(/\s+/)
+            .filter(w => w.length > 6)
+            .slice(0, 5);
+          searchTerms.push(...descWords);
+        }
+
+        // Score each page — the page with the most term matches wins
+        let bestPage = 1;
+        let bestScore = -1;
+
         for (let p = 1; p <= numPages; p++) {
-          if (pageTexts[p] && snippet) {
-            const shortSnip = snippet.slice(0, 35).trim();
-            if (pageTexts[p].includes(shortSnip) || pageTexts[p].includes(v.title.toLowerCase())) {
-              matchedPageNum = p;
-              break;
+          const pageText = pageTexts[p];
+          if (!pageText) continue;
+
+          let score = 0;
+          for (const term of searchTerms) {
+            if (pageText.includes(term)) {
+              // More weight for longer/more specific terms
+              score += term.length;
             }
           }
+          if (score > bestScore) {
+            bestScore = score;
+            bestPage = p;
+          }
         }
-        highlightedPage = matchedPageNum;
-        currentPage = matchedPageNum;
 
-        // Scroll PDF container to target page wrapper
-        const targetPageEl = pdfCanvasContainer.querySelector(`[data-page-num="${matchedPageNum}"]`) as HTMLElement;
-        if (targetPageEl) {
-          targetPageEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        highlightedPage = bestPage;
+        currentPage = bestPage;
+
+        // --- Scroll to detected page inside the viewer-content div ---
+        // Use manual offsetTop-based scroll (not scrollIntoView which scrolls window)
+        const targetPageEl = pdfCanvasContainer.querySelector(
+          `[data-page-num="${bestPage}"]`
+        ) as HTMLElement | null;
+
+        if (targetPageEl && viewerContainer) {
+          // offsetTop relative to pdfCanvasContainer, then add container's offsetTop
+          const containerTop = pdfCanvasContainer.offsetTop;
+          const pageRelativeTop = targetPageEl.offsetTop;
+          const scrollTarget = containerTop + pageRelativeTop - 20; // 20px breathing room
+
+          viewerContainer.scrollTo({
+            top: scrollTarget,
+            behavior: 'smooth'
+          });
+
+          // Apply pulse glow class temporarily
           targetPageEl.classList.add('pulse-page-highlight');
           setTimeout(() => {
             targetPageEl.classList.remove('pulse-page-highlight');

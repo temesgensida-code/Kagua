@@ -20,8 +20,7 @@
 
   <!-- Main Headline -->
   <h1 class="main-title">
-    <span class="text-compliance">PROCLAMATION 1156/2019</span>
-    <span class="text-check">AUDIT & REASONING</span>
+    <span class="text-kagua">KAGUA</span>
   </h1>
 
   <!-- Subtitle / Description -->
@@ -93,35 +92,16 @@
   }
 
   .main-title {
-    display: flex;
-    flex-direction: column;
-    line-height: 0.95;
-    margin-bottom: 1.25rem;
+    margin-bottom: 0.75rem;
   }
 
-  .text-compliance {
+  .text-kagua {
     font-family: var(--font-title);
-    font-size: clamp(2.8rem, 6vw, 4.2rem);
-    font-weight: 900;
-    letter-spacing: 2px;
+    font-size: 1.8rem;
+    font-weight: 800;
+    letter-spacing: 5px;
     color: #ffffff;
-    text-shadow: 0 0 20px rgba(255, 255, 255, 0.15);
-  }
-
-  .text-check {
-    font-family: var(--font-title);
-    font-size: clamp(2.8rem, 6vw, 4.2rem);
-    font-weight: 900;
-    letter-spacing: 2px;
-    color: transparent;
-    -webkit-text-stroke: 1.8px var(--cyan-primary);
-    background-image: 
-      linear-gradient(0deg, rgba(0, 240, 255, 0.2) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0, 240, 255, 0.2) 1px, transparent 1px);
-    background-size: 8px 8px;
-    -webkit-background-clip: text;
-    background-clip: text;
-    filter: drop-shadow(0 0 12px rgba(0, 240, 255, 0.5));
+    text-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
   }
 
   .description {

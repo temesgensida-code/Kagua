@@ -11,6 +11,7 @@
 
 <div class="app-root">
 	<div class="bg-grid"></div>
+	<div class="bg-paper-texture"></div>
 	<div class="bg-glow"></div>
 	<main class="app-main">
 		{@render children()}

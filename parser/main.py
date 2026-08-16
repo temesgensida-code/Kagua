@@ -78,8 +78,8 @@ async def parse_document(file: UploadFile = File(...)):
             detail=f"File size exceeds maximum threshold of {MAX_FILE_SIZE_BYTES // (1024 * 1024)}MB."
         )
 
-    # 1. Extract raw text in-memory
-    raw_text = extract_document_text(file.filename, file.content_type, contents)
+    # 1. Extract raw text in-memory (returns (text, ocr_used) tuple)
+    raw_text, ocr_used = extract_document_text(file.filename, file.content_type, contents)
 
     if not raw_text or not raw_text.strip():
         raise HTTPException(
@@ -99,6 +99,7 @@ async def parse_document(file: UploadFile = File(...)):
         "content_type": file.content_type,
         "text_length": len(raw_text),
         "raw_text": raw_text,
+        "ocr_used": ocr_used,
         "entities": ner_result["entities"],
         "clauses": ner_result["clauses"],
         "summary": ner_result["summary"],
@@ -122,7 +123,7 @@ async def rag_parse_document(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="No file uploaded.")
 
     contents = await file.read()
-    raw_text = extract_document_text(file.filename, file.content_type, contents)
+    raw_text, _ocr_used = extract_document_text(file.filename, file.content_type, contents)
     if not raw_text or not raw_text.strip():
         raise HTTPException(status_code=422, detail="Empty or unreadable document.")
 

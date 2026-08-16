@@ -10,26 +10,14 @@ export interface Framework {
   ruleCount: number;
 }
 
-export interface Framework {
-  id: string;
-  name: string;
-  color: string;
-  bg: string;
-  border: string;
-  glow: string;
-  active: boolean;
-  description: string;
-  ruleCount: number;
-}
-
 export const INITIAL_FRAMEWORKS: Framework[] = [
   {
     id: 'ethiopian_labour_proclamation',
     name: 'Labour Proclamation 1156/2019',
-    color: '#00f0ff',
-    bg: 'rgba(0, 240, 255, 0.12)',
-    border: 'rgba(0, 240, 255, 0.5)',
-    glow: '0 0 12px rgba(0, 240, 255, 0.3)',
+    color: '#AFB3B7',
+    bg: '#132E35',
+    border: '#3d4145ff',
+    glow: '0 0 12px rgba(56, 55, 54, 0.3)',
     active: true,
     description: 'Federal Democratic Republic of Ethiopia Labour Proclamation No. 1156/2019',
     ruleCount: 14
@@ -37,10 +25,10 @@ export const INITIAL_FRAMEWORKS: Framework[] = [
   {
     id: 'eth_probation',
     name: 'Article 11 Probation',
-    color: '#ffd700',
-    bg: 'rgba(255, 215, 0, 0.12)',
-    border: 'rgba(255, 215, 0, 0.5)',
-    glow: '0 0 12px rgba(255, 215, 0, 0.3)',
+    color: '#AFB3B7',
+    bg: '#132E35',
+    border: '#3d4145ff',
+    glow: '0 0 12px rgba(56, 55, 54, 0.3)',
     active: true,
     description: 'Probation period statutory limit (Max 60 working days per Art. 11(3))',
     ruleCount: 1
@@ -48,10 +36,10 @@ export const INITIAL_FRAMEWORKS: Framework[] = [
   {
     id: 'eth_working_hours',
     name: 'Article 61 & 67 Working Hours',
-    color: '#00ff88',
-    bg: 'rgba(0, 255, 136, 0.12)',
-    border: 'rgba(0, 255, 136, 0.5)',
-    glow: '0 0 12px rgba(0, 255, 136, 0.3)',
+    color: '#AFB3B7',
+    bg: '#132E35',
+    border: '#3d4145ff',
+    glow: '0 0 12px rgba(56, 55, 54, 0.3)',
     active: true,
     description: 'Normal working hours cap (8 hrs/day, 48 hrs/wk) & overtime cap (2 hrs/day)',
     ruleCount: 3
@@ -59,10 +47,10 @@ export const INITIAL_FRAMEWORKS: Framework[] = [
   {
     id: 'eth_maternity',
     name: 'Article 88 Maternity Leave',
-    color: '#ff528c',
-    bg: 'rgba(255, 82, 140, 0.12)',
-    border: 'rgba(255, 82, 140, 0.5)',
-    glow: '0 0 12px rgba(255, 82, 140, 0.3)',
+    color: '#AFB3B7',
+    bg: '#132E35',
+    border: '#3d4145ff',
+    glow: '0 0 12px rgba(56, 55, 54, 0.3)',
     active: true,
     description: 'Paid maternity leave statutory entitlement (120 consecutive days)',
     ruleCount: 1
@@ -70,10 +58,10 @@ export const INITIAL_FRAMEWORKS: Framework[] = [
   {
     id: 'eth_harassment',
     name: 'Article 14 Workplace Protections',
-    color: '#d070ff',
-    bg: 'rgba(208, 112, 255, 0.12)',
-    border: 'rgba(208, 112, 255, 0.5)',
-    glow: '0 0 12px rgba(208, 112, 255, 0.3)',
+    color: '#AFB3B7',
+    bg: '#132E35',
+    border: '#3d4145ff',
+    glow: '0 0 12px rgba(56, 55, 54, 0.3)',
     active: true,
     description: 'Anti-discrimination and zero-tolerance sexual harassment policy mandates',
     ruleCount: 2

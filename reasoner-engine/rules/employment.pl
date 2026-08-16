@@ -409,5 +409,194 @@ check_violation(Domain, violation{
     doc_fact(dispute_appeal_waived, true).
 
 
+%% ============================================================================
+%% Three-Valued Logic: Ambiguity Warning Rules (Phase 4)
+%%
+%% Triggered when a clause TYPE was detected by NER (has_*_clause = true)
+%% but the numeric value could not be extracted from the document text.
+%% These fire `severity: warning` to flag clauses requiring manual review
+%% instead of silently passing as compliant.
+%% ============================================================================
 
+%% Article 11(3) — Probation clause detected but duration not parseable
+check_violation(Domain, violation{
+    rule:          'Ethiopian Labour Proclamation No. 1156/2019 - Article 11(3)',
+    title:         'Ambiguous Probation Period Duration',
+    severity:      warning,
+    description:   'Contract contains a probation clause but the exact duration in days or months could not be determined. Manual review required to confirm compliance with the 60 working day limit.',
+    recommendation: 'Explicitly state the probation period in working days (maximum 60) as required by Article 11(3).'
+}) :-
+    ethiopian_domain(Domain),
+    doc_fact(has_probation_clause, true),
+    \+ doc_fact(probation_days, _).
+
+%% Article 61(1) — Working hours clause detected but hours not parseable
+check_violation(Domain, violation{
+    rule:          'Ethiopian Labour Proclamation No. 1156/2019 - Article 61(1)',
+    title:         'Ambiguous Working Hours Specification',
+    severity:      warning,
+    description:   'Contract references working hours but exact daily or weekly figures could not be determined. Manual review required to confirm compliance with the 8 hrs/day and 48 hrs/week limits.',
+    recommendation: 'State precise daily and weekly working hours (max 8 hrs/day, 48 hrs/week) per Article 61(1).'
+}) :-
+    ethiopian_domain(Domain),
+    doc_fact(has_working_hours_clause, true),
+    \+ doc_fact(working_hours_per_day, _),
+    \+ doc_fact(weekly_working_hours, _).
+
+%% Article 77(1) — Annual leave clause detected but days not parseable
+check_violation(Domain, violation{
+    rule:          'Ethiopian Labour Proclamation No. 1156/2019 - Article 77(1)',
+    title:         'Ambiguous Annual Leave Duration',
+    severity:      warning,
+    description:   'Contract references annual leave but the number of working days could not be extracted. Manual review required to confirm the statutory minimum of 16 working days.',
+    recommendation: 'Specify at least 16 working days of paid annual leave per Article 77(1).'
+}) :-
+    ethiopian_domain(Domain),
+    doc_fact(has_annual_leave_clause, true),
+    \+ doc_fact(annual_leave_days, _).
+
+%% Article 88(2-3) — Maternity leave clause detected but days not parseable
+check_violation(Domain, violation{
+    rule:          'Ethiopian Labour Proclamation No. 1156/2019 - Article 88(2-3)',
+    title:         'Ambiguous Maternity Leave Duration',
+    severity:      warning,
+    description:   'Contract references maternity leave but the total consecutive days could not be determined. Manual review required to confirm the mandatory 120-day minimum.',
+    recommendation: 'Provide exactly 120 consecutive days of fully paid maternity leave (30 prenatal + 90 postnatal) per Article 88.'
+}) :-
+    ethiopian_domain(Domain),
+    doc_fact(has_maternity_leave_clause, true),
+    \+ doc_fact(maternity_leave_days, _).
+
+%% Articles 35 & 44 — Termination notice clause detected but period not parseable
+check_violation(Domain, violation{
+    rule:          'Ethiopian Labour Proclamation No. 1156/2019 - Articles 35 & 44',
+    title:         'Ambiguous Termination Notice Period',
+    severity:      warning,
+    description:   'Contract contains a termination notice clause but the exact duration in days could not be determined. Manual review required to confirm the statutory 30-day minimum.',
+    recommendation: 'Specify a minimum termination notice period of 30 days in writing per Articles 35 & 44.'
+}) :-
+    ethiopian_domain(Domain),
+    doc_fact(has_termination_notice_clause, true),
+    \+ doc_fact(notice_period_days, _).
+
+%% Article 39 — Severance clause detected but terms ambiguous
+check_violation(Domain, violation{
+    rule:          'Ethiopian Labour Proclamation No. 1156/2019 - Article 39',
+    title:         'Ambiguous Severance Pay Terms',
+    severity:      warning,
+    description:   'Contract references severance or termination compensation but the calculation or entitlement terms could not be verified. Manual review required.',
+    recommendation: 'State severance pay terms clearly: at least 30 times the daily wage per year of service per Article 39.'
+}) :-
+    ethiopian_domain(Domain),
+    doc_fact(has_severance_provision, true),
+    \+ doc_fact(severance_forfeited, _).
+
+
+%% ============================================================================
+%% Additional Statutory Violation Rules (Addressing Missed Fictional Vacancy Issues)
+%% ============================================================================
+
+%% Article 61(2) — Weekly Working Hours Exceed 48 Hours
+check_violation(Domain, violation{
+    rule:          'Ethiopian Labour Proclamation No. 1156/2019 - Article 61(2)',
+    title:         'Excessive Weekly Working Hours',
+    severity:      critical,
+    description:   'Contract establishes a weekly schedule of ~W hours, exceeding the statutory maximum of 48 normal working hours per week.',
+    recommendation: 'Reduce weekly working hours to 48 hours or fewer per Article 61(2).'
+}) :-
+    ethiopian_domain(Domain),
+    doc_fact(weekly_working_hours, W),
+    W > 48.
+
+%% Article 71(1) — Routine Sunday / Weekly Rest Day Work
+check_violation(Domain, violation{
+    rule:          'Ethiopian Labour Proclamation No. 1156/2019 - Article 71(1)',
+    title:         'Routine Work Scheduled on Weekly Rest Day',
+    severity:      critical,
+    description:   'Contract schedules work on the weekly rest day (Sunday) as a standard routine duty rather than limiting rest day work to exceptional emergency circumstances.',
+    recommendation: 'Restrict weekly rest day work strictly to exceptional circumstances defined in Article 71(1).'
+}) :-
+    ethiopian_domain(Domain),
+    doc_fact(routine_rest_day_work_detected, true).
+
+%% Article 67(2) — Weekly Overtime Exceeds 12 Hours
+check_violation(Domain, violation{
+    rule:          'Ethiopian Labour Proclamation No. 1156/2019 - Article 67(2)',
+    title:         'Excessive Weekly Overtime Limit',
+    severity:      critical,
+    description:   'Contract overtime schedule totals ~OT hours per week, breaching the statutory cap of 12 hours of overtime per week.',
+    recommendation: 'Cap overtime hours to a maximum of 4 hours per day and 12 hours per week per Article 67(2).'
+}) :-
+    ethiopian_domain(Domain),
+    doc_fact(overtime_hours_per_week, OT),
+    OT > 12.
+
+%% Article 59(2) — Wage Deductions Exceed 1/3 Ceiling (33.3%)
+check_violation(Domain, violation{
+    rule:          'Ethiopian Labour Proclamation No. 1156/2019 - Article 59(2)',
+    title:         'Excessive Wage Deduction Ceiling',
+    severity:      critical,
+    description:   'Contract sets maximum wage deduction ceiling at ~PCT%, exceeding the statutory limit of one-third (33.3%) of monthly wages.',
+    recommendation: 'Lower maximum wage deduction ceiling to no more than one-third (33.3%) of worker monthly remuneration per Article 59(2).'
+}) :-
+    ethiopian_domain(Domain),
+    doc_fact(max_wage_deduction_percent, PCT),
+    PCT > 33.
+
+%% Article 59(1) — Unlawful Resignation Wage Penalty
+check_violation(Domain, violation{
+    rule:          'Ethiopian Labour Proclamation No. 1156/2019 - Article 59(1)',
+    title:         'Unlawful Wage Withholding Resignation Penalty',
+    severity:      critical,
+    description:   'Contract imposes a service completion charge or wage withholding penalty for early resignation, which is not among lawful statutory wage deduction grounds.',
+    recommendation: 'Remove mandatory wage withholding penalties for employee resignation per Article 59(1).'
+}) :-
+    ethiopian_domain(Domain),
+    doc_fact(unlawful_wage_deduction_detected, true).
+
+%% Article 36 — Final Settlement Delayed Beyond 7 Working Days
+check_violation(Domain, violation{
+    rule:          'Ethiopian Labour Proclamation No. 1156/2019 - Article 36',
+    title:         'Delayed Final Settlement Payment Period',
+    severity:      critical,
+    description:   'Contract defers final settlement processing up to ~DAYS days, exceeding the statutory requirement to settle all termination payments within 7 working days.',
+    recommendation: 'Specify that all final wages and statutory entitlements must be settled within 7 working days of termination per Article 36.'
+}) :-
+    ethiopian_domain(Domain),
+    doc_fact(final_settlement_days, DAYS),
+    DAYS > 7.
+
+%% Article 91(1-3) — Prohibited Night & Rest-Day Shift Assignment for Young Workers
+check_violation(Domain, violation{
+    rule:          'Ethiopian Labour Proclamation No. 1156/2019 - Article 91(1-3)',
+    title:         'Prohibited Shift Assignment for Young Workers',
+    severity:      critical,
+    description:   'Young workers (ages 15-17) are assigned to night shifts (10 p.m. to 6 a.m.) or weekly rest days (Sunday sessions), violating statutory protections for minors.',
+    recommendation: 'Exclude young workers from night shifts (10 p.m. to 6 a.m.), overtime, and weekly rest day shifts per Article 91.'
+}) :-
+    ethiopian_domain(Domain),
+    doc_fact(young_worker_night_work_detected, true).
+
+%% Article 87(6) — At-Will Termination Risk for Pregnant Employees
+check_violation(Domain, violation{
+    rule:          'Ethiopian Labour Proclamation No. 1156/2019 - Article 87(6)',
+    title:         'Termination Protection Violation for Pregnant Workers',
+    severity:      critical,
+    description:   'Contract provides for convenience/at-will termination without cause while subjecting extended maternity leave to staffing level reviews, creating risk of unlawful dismissal during pregnancy or maternity.',
+    recommendation: 'Explicitly guarantee that employment cannot be terminated during pregnancy or within four months following confinement per Article 87(6).'
+}) :-
+    ethiopian_domain(Domain),
+    doc_fact(pregnant_worker_termination_risk, true).
+
+%% Article 86 — Reduced First-Month Sick Leave Payment Rate
+check_violation(Domain, violation{
+    rule:          'Ethiopian Labour Proclamation No. 1156/2019 - Article 86',
+    title:         'Sub-Statutory First-Month Sick Leave Payment Rate',
+    severity:      critical,
+    description:   'Contract pays sick leave at ~RATE% for the first month, below the statutory requirement of 100% full wage pay during the first month of certified sick leave.',
+    recommendation: 'Ensure sick leave is paid at 100% of wage for the first month, 50% for the next two months, per Article 86.'
+}) :-
+    ethiopian_domain(Domain),
+    doc_fact(sick_leave_first_month_rate_percent, RATE),
+    RATE < 100.
 

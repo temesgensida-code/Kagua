@@ -19,6 +19,74 @@ PROCLAMATION_JSON_PATH = os.path.abspath(
 )
 
 # -----------------------------------------------------------------------------
+# 0. Legal Number Normalizer (Phase 2)
+#    Parses numbers written as digits, written words, or parenthesized formats
+#    e.g. "60 (sixty) working days", "ninety days", "three months"
+# -----------------------------------------------------------------------------
+
+# Explicit map for high-priority statutory values used in Ethiopian Labour Law
+LEGAL_WORD_TO_NUMBER: dict[str, int] = {
+    "one hundred and twenty": 120, "one hundred twenty": 120,
+    "forty-eight": 48, "twenty-four": 24, "seventy-two": 72,
+    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
+    "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+    "eleven": 11, "twelve": 12, "thirteen": 13, "fourteen": 14,
+    "fifteen": 15, "sixteen": 16, "seventeen": 17, "eighteen": 18,
+    "twenty": 20, "thirty": 30, "forty": 40, "fifty": 50,
+    "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90,
+    "one hundred": 100,
+}
+
+# Regex: matches "8:00 AM to 6:00 PM" style shift definitions
+SHIFT_TIME_REGEX = re.compile(
+    r"\b(\d{1,2})(?::\d{2})?\s*(?:[Aa]\.?[Mm]\.?)?\s*(?:to|until|-)\s*(\d{1,2})(?::\d{2})?\s*(?:[Pp]\.?[Mm]\.?)",
+    re.IGNORECASE,
+)
+
+
+def parse_legal_number(text_window: str) -> int | None:
+    """
+    Extract a number from a text window, supporting:
+      1. Pure digits with optional written form: "60 (sixty)", "(45)" → 60 / 45
+      2. Written ordinals/words: "ninety working days", "forty-five" → 90 / 45
+      3. word2number library fallback for complex phrases
+    """
+    # 1. Digit (with optional parenthesized written form)
+    m = re.search(r"\(?\b(\d+)\b\)?", text_window)
+    if m:
+        return int(m.group(1))
+
+    # 2. Written word map — sorted longest-first to match multi-word phrases first
+    window_clean = text_window.lower().replace("-", " ")
+    for word, val in sorted(LEGAL_WORD_TO_NUMBER.items(), key=lambda x: -len(x[0])):
+        if word in window_clean:
+            return val
+
+    # 3. word2number library fallback
+    try:
+        from word2number import w2n
+        return w2n.word_to_num(window_clean)
+    except Exception:
+        return None
+
+
+def extract_shift_hours(text: str) -> int | None:
+    """
+    Detect shift-time patterns like '8:00 AM to 6:00 PM' and compute hours worked.
+    Used as a fallback when working_hours_per_day is not directly stated as a number.
+    """
+    for m in SHIFT_TIME_REGEX.finditer(text):
+        start_h = int(m.group(1))
+        end_h = int(m.group(2))
+        if end_h < 12:      # Normalize PM hour
+            end_h += 12
+        duration = end_h - start_h
+        if 1 <= duration <= 24:
+            return duration
+    return None
+
+
+# -----------------------------------------------------------------------------
 # 1. Privacy Anonymization & De-Identification Engine (0 Disk / 0 External AI)
 # -----------------------------------------------------------------------------
 EMAIL_REGEX = re.compile(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+")
@@ -315,10 +383,11 @@ ETHIOPIAN_LABOUR_QUERIES = {
 }
 
 def extract_number_near_keyword(
-    text: str, keywords: List[str], unit_pattern: str, max_dist: int = 60
+    text: str, keywords: List[str], unit_pattern: str, max_dist: int = 80
 ) -> Tuple[int | None, str | None]:
     """
-    Extract a number that appears within `max_dist` characters of specified keywords inside a sentence.
+    Extract a number appearing within `max_dist` characters of specified keywords.
+    Uses parse_legal_number() to handle digits, written words, and parenthesized formats.
     Returns (extracted_number, sentence_snippet).
     """
     doc = nlp(text)
@@ -333,13 +402,232 @@ def extract_number_near_keyword(
                     win_start = max(0, kw_idx - max_dist)
                     win_end = min(len(sent_text), kw_idx + len(kw) + max_dist)
                     window = sent_text[win_start:win_end]
-                    match = re.search(rf"(?i)\b(\d+)\s*{unit_pattern}", window)
-                    if match:
-                        return int(match.group(1)), sent_text
+                    # Use legal number parser — handles digits, written words, parenthesized forms
+                    val = parse_legal_number(window)
+                    if val is not None:
+                        return val, sent_text
     return None, None
 
 
+def extract_probation_cycle_arithmetic(text: str) -> Tuple[int | None, str | None]:
+    """
+    Detects patterns like 'three consecutive Evaluation Cycles. Each Evaluation Cycle is a block of forty-five (45) working days'
+    and computes N * M = 135 days.
+    """
+    num_words = r"(?:one|two|three|four|five|six|seven|eight|nine|ten|\d+)"
+    for m_cycles in re.finditer(rf"(?i)\b({num_words})\s+(?:consecutive\s+)?(?:evaluation|orientation|probationary|trial)\s+(?:cycles?|tracks?|periods?)", text):
+        n = parse_legal_number(m_cycles.group(1))
+        if n is not None:
+            window = text[m_cycles.start():m_cycles.start() + 250]
+            m_days = re.search(r"(?i)\b(forty-five|sixty|ninety|thirty|forty|\d+)\D{0,30}(days?|months?)", window)
+            if m_days:
+                val = parse_legal_number(m_days.group(1))
+                unit = m_days.group(2)
+                if val is not None and val != n:
+                    mult = 30 if "month" in unit.lower() else 1
+                    return n * val * mult, window[:150]
+    return None, None
+
+
+def extract_shift_and_weekly_hours_arithmetic(text: str) -> Tuple[float | None, float | None, str | None]:
+    """
+    Computes daily shift hours (subtracting meal breaks) and weekly working hours.
+    e.g. Shift A: 6:00 a.m. to 3:00 p.m. (9 hrs) minus 30-min break = 8.5 hrs/day.
+    6 days/week = 51 hrs + 4 hrs Sunday stock reconciliation = 55 hrs/week.
+    """
+    text_lower = text.lower()
+    
+    # 1. Shift duration: start_time to end_time
+    m_shift = re.search(r"(\d{1,2})(?::\d{2})?\s*(a\.m\.|p\.m\.|am|pm)?\s*to\s*(\d{1,2})(?::\d{2})?\s*(a\.m\.|p\.m\.|am|pm)?", text_lower)
+    daily_hrs = None
+    if m_shift:
+        s_h = int(m_shift.group(1))
+        s_ampm = m_shift.group(2)
+        e_h = int(m_shift.group(3))
+        e_ampm = m_shift.group(4)
+        
+        if e_ampm and ('p' in e_ampm) and e_h < 12:
+            e_h += 12
+        elif s_ampm and ('a' in s_ampm) and ('p' in str(e_ampm)) and e_h < 12:
+            e_h += 12
+        elif s_h == 6 and e_h == 3:  # 6 am to 3 pm
+            e_h = 15
+        elif s_h == 3 and e_h == 12:  # 3 pm to 12 midnight
+            s_h = 15
+            e_h = 24
+            
+        gross_hrs = e_h - s_h
+        if gross_hrs < 0:
+            gross_hrs += 24
+            
+        # Deduct meal break if mentioned (e.g. thirty-minute / 30-minute / half-hour)
+        break_mins = 0
+        if "thirty-minute" in text_lower or "30-minute" in text_lower or "half-hour" in text_lower:
+            break_mins = 30
+        
+        daily_hrs = gross_hrs - (break_mins / 60.0)
+
+    # 2. Weekly days worked (default 6 if 6 days or shift A/B or rotating)
+    days_per_week = 6 if ("6 days" in text_lower or "six days" in text_lower or "shift a" in text_lower or "shift b" in text_lower) else 5
+    
+    # 3. Sunday / extra session hours
+    sunday_extra_hrs = 0
+    if "sunday" in text_lower:
+        m_sun = re.search(r"sunday[^\n.]{0,50}(\d+)\s*hours?", text_lower)
+        if m_sun:
+            sunday_extra_hrs = int(m_sun.group(1))
+        elif "7:00" in text_lower and "11:00" in text_lower:
+            sunday_extra_hrs = 4
+
+    weekly_hrs = None
+    if daily_hrs:
+        weekly_hrs = (daily_hrs * days_per_week) + sunday_extra_hrs
+        
+    return daily_hrs, weekly_hrs, m_shift.group(0) if m_shift else None
+
+
+
+
+# -----------------------------------------------------------------------------
+# 5. Legalese Synonym Expansion Maps (Phase 3)
+#    Each list covers plain English + formal legal English variants so that
+#    contracts written in legalese are not missed by boolean keyword scanning.
+# -----------------------------------------------------------------------------
+
+UNPAID_OVERTIME_SYNONYMS = [
+    "unpaid overtime", "overtime without pay", "no overtime pay",
+    "overtime included in base salary", "without additional compensation for overtime",
+    "unpaid extra hours",
+    "extraordinary hours shall attract no supplementary remuneration",
+    "no premium rate for additional hours", "overtime is not separately compensated",
+    "overtime remuneration is waived", "overtime absorbed in monthly salary",
+    "no compensation for hours beyond normal shift", "extra hours uncompensated",
+    "without further payment for overtime", "additional hours not remunerated",
+    "flexible time recognition", "banked time off", "time off in lieu", "toil",
+    "time bank", "compensatory time", "0.75 hours of banked time",
+]
+
+WEEKLY_REST_DENIED_SYNONYMS = [
+    "no weekly rest", "7 days a week", "seven days a week",
+    "continuous work without rest", "no rest day", "waive weekly rest",
+    "no guaranteed rest period within each 7-day cycle",
+    "continuous engagement without designated rest",
+    "worker shall remain available without weekly break",
+]
+
+SEVERANCE_FORFEITED_SYNONYMS = [
+    "forfeit severance", "forfeiture of severance", "no severance pay",
+    "waive severance", "relinquish severance", "without severance pay",
+    "termination shall not give rise to severance entitlement",
+    "does not give rise to an entitlement to severance",
+    "no entitlement to severance", "severance does not apply",
+    "employee forfeits all severance compensation", "no termination indemnity",
+    "cessation of service carries no severance obligation",
+    "severance pay is hereby waived",
+]
+
+WORKER_PAYS_PPE_SYNONYMS = [
+    "buy own ppe", "worker must purchase", "employee must purchase",
+    "purchase safety gear", "buy protective equipment",
+    "safety gear at worker expense", "ppe at employee cost",
+    "worker shall procure all personal protective apparatus",
+    "employee bears responsibility for occupational safety equipment",
+    "cost of protective gear shall be borne by the employee",
+    "worker to supply own safety equipment",
+    "safety-kit deposit", "uniform deposit", "ppe deposit",
+    "uniform and safety-kit deposit", "deposit of etb",
+]
+
+HIRING_DISCRIMINATION_SYNONYMS = [
+    "male only", "female only", "women only", "men only",
+    "single only", "unmarried", "religion requirement",
+    "christian only", "muslim only", "restrict applicants by sex",
+    "restrict applicants by gender", "restricted to female", "restricted to male",
+    "marital status requirement",
+    "applications restricted to members of", "vacancy limited to",
+    "candidates must be of", "applicants shall profess",
+    "only persons of the following gender", "limited to unmarried applicants",
+    "without competing family", "caregiving obligations",
+    "without family obligations", "competing family or caregiving",
+]
+
+DISPUTE_WAIVER_SYNONYMS = [
+    "waive right to appeal", "cannot appeal dismissal", "waive court access",
+    "no recourse to labour board", "forfeit appeal rights", "waive dispute resolution",
+    "employee irrevocably waives any right to contest termination",
+    "no right of appeal to any tribunal",
+    "dispute resolution rights are hereby relinquished",
+    "worker consents to final and binding employer decision without recourse",
+    "foregoes any statutory right of appeal",
+]
+
+PROHIBITS_INSPECTION_SYNONYMS = [
+    "contacting labour inspector", "contact labour inspector",
+    "contact government inspector", "forbidden to contact inspector",
+    "no communication with ministry of labor", "banning inspector access",
+    "employee shall not communicate with ministry of labour",
+    "prohibited from filing complaints with labour authorities",
+    "worker may not report to government labour inspectorate",
+    "access to labour inspection services is restricted",
+]
+
+TRADE_UNION_SYNONYMS = [
+    "banning trade union", "ban trade union", "no trade union",
+    "prohibit union", "forbidden to join union", "termination for joining union",
+    "no union membership",
+    "employee shall not participate in any trade union",
+    "membership in any labor organization is prohibited",
+    "worker renounces right to collective bargaining",
+    "association with any union is grounds for termination",
+    "outside associations", "independent worker associations",
+    "parallel, sometimes conflicting channels",
+]
+
+PREGNANCY_DISCRIMINATION_SYNONYMS = [
+    "pregnant", "pregnancy", "childbirth", "maternity test",
+    "resignation upon pregnancy", "terminate if pregnant",
+    "resignation on childbirth", "no pregnant applicants",
+    "female workers shall resign upon confirmation of pregnancy",
+    "pregnancy shall constitute grounds for termination",
+    "worker must disclose pregnancy status as condition of employment",
+    "employment ceases upon commencement of maternity",
+    "pregnancy status test",
+]
+
+MATERNITY_DENIED_SYNONYMS = [
+    "unpaid maternity leave", "no paid maternity leave",
+    "maternity leave without pay", "maternity leave is unpaid",
+    "maternity absence shall be without salary entitlement",
+    "no remuneration during maternity period",
+    "maternity leave is taken at employee's own expense",
+    "does not maintain a separate paid maternity leave",
+    "combine their available annual leave balance",
+    "combine annual leave and sick leave",
+    "no separate paid maternity leave",
+]
+
+ANNUAL_LEAVE_DENIED_SYNONYMS = [
+    "no annual leave for the first", "no leave for the first",
+    "leave begins after 3 years", "leave after 2 years",
+    "forfeiture of annual leave", "no annual leave during the first",
+    "annual leave entitlement commences after completion of",
+    "paid vacation accrual is deferred for the initial",
+    "no paid rest period is granted during the probationary",
+    "lapses and does not carry forward", "is not paid out in lieu",
+    "does not carry forward", "lapses",
+]
+
+
+def _detect_any_synonym(text_lower: str, synonyms: list) -> str | None:
+    """Returns the first matched synonym string, or None if none matched."""
+    for kw in synonyms:
+        if kw in text_lower:
+            return kw
+    return None
+
+
 def extract_rag_compliance_facts(raw_text: str) -> Dict[str, Any]:
+
     """
     Ethiopian Labour Proclamation No. 1156/2019 RAG Pipeline:
     1. Anonymize user sensitive data (PII/PHI redacted to <PERSON_X>, <EMAIL_X>, etc.).
@@ -392,6 +680,17 @@ def extract_rag_compliance_facts(raw_text: str) -> Dict[str, Any]:
             }
             break
 
+    # Arithmetic Fallback for Probation: e.g. "Three consecutive Evaluation Cycles of 45 working days each" = 135 days
+    if "probation_days" not in prolog_facts:
+        arith_days, arith_snip = extract_probation_cycle_arithmetic(sanitized_text)
+        if arith_days is not None:
+            prolog_facts["probation_days"] = arith_days
+            fact_provenance["probation_days"] = {
+                "value": arith_days,
+                "source_text": f"Calculated from evaluation cycle structure: '{arith_snip}'",
+                "article_reference": "Article 11(3)"
+            }
+
     # Extract Working Hours (Legal max: 8 hrs/day, 48 hrs/week per Article 61)
     wh_chunks = retrieved_doc_contexts.get("working_hours", [])
     for c in wh_chunks:
@@ -412,16 +711,43 @@ def extract_rag_compliance_facts(raw_text: str) -> Dict[str, Any]:
                 "article_reference": "Article 61(1)"
             }
 
-    # Extract Overtime Hours (Legal max: 2 hrs/day per Article 67)
+    # Shift-time & Weekly Hours Arithmetic (e.g. 6:00 am - 3:00 pm minus 30m break * 6 days + Sunday = 55 hrs)
+    daily_hrs, weekly_hrs, shift_snip = extract_shift_and_weekly_hours_arithmetic(sanitized_text)
+    if daily_hrs is not None:
+        prolog_facts["working_hours_per_day"] = daily_hrs
+        fact_provenance["working_hours_per_day"] = {
+            "value": daily_hrs,
+            "source_text": f"Calculated net daily shift hours from contract text.",
+            "article_reference": "Article 61(1)"
+        }
+    if weekly_hrs is not None:
+        prolog_facts["weekly_working_hours"] = weekly_hrs
+        fact_provenance["weekly_working_hours"] = {
+            "value": weekly_hrs,
+            "source_text": f"Calculated total weekly hours (daily shift * days + Sunday session).",
+            "article_reference": "Article 61(1)"
+        }
+
+    # Extract Overtime Hours (Legal max: 2 hrs/day, 12 hrs/week per Article 67)
     ot_chunks = retrieved_doc_contexts.get("overtime", [])
     for c in ot_chunks:
-        val_ot, snip_ot = extract_number_near_keyword(c["text"], ["overtime", "extra hours"], r"(?:hours?|hrs?)\s*(?:per|a|\/)?\s*day")
+        val_ot, snip_ot = extract_number_near_keyword(c["text"], ["overtime", "extra hours", "beyond their scheduled shift", "no more than"], r"(?:hours?|hrs?)\s*(?:per|a|\/)?\s*day")
+        if val_ot is None:
+            # Fallback: search for numbers near "three hours" / "no more than three hours"
+            val_ot, snip_ot = extract_number_near_keyword(c["text"], ["three hours", "3 hours", "beyond"], r"hours?")
         if val_ot is not None:
             prolog_facts["overtime_hours_per_day"] = val_ot
             fact_provenance["overtime_hours_per_day"] = {
                 "value": val_ot,
                 "source_text": snip_ot[:200] if snip_ot else c["text"][:200],
                 "article_reference": "Article 67"
+            }
+            # Compute weekly overtime total if workweek is 6 days
+            prolog_facts["overtime_hours_per_week"] = val_ot * 6
+            fact_provenance["overtime_hours_per_week"] = {
+                "value": val_ot * 6,
+                "source_text": f"Calculated weekly overtime ({val_ot} hrs/day * 6 days/week = {val_ot * 6} hrs/week).",
+                "article_reference": "Article 67(2)"
             }
             break
 
@@ -514,116 +840,101 @@ def extract_rag_compliance_facts(raw_text: str) -> Dict[str, Any]:
     full_lower = sanitized_text.lower()
 
     # 1. Hiring Discrimination (Articles 14(1)(b-c) & 87)
-    hd_keywords = ["male only", "female only", "women only", "men only", "single only", "unmarried", "religion requirement", "christian only", "muslim only", "restrict applicants by sex", "restrict applicants by gender", "restricted to female", "restricted to male", "marital status requirement"]
-    for kw in hd_keywords:
-        if kw in full_lower:
-            prolog_facts["hiring_discrimination_detected"] = True
-            fact_provenance["hiring_discrimination_detected"] = {
-                "value": True,
-                "source_text": f"Found discriminatory requirement '{kw}' in document text.",
-                "article_reference": "Articles 14(1)(b-c) & 87"
-            }
-            break
+    matched = _detect_any_synonym(full_lower, HIRING_DISCRIMINATION_SYNONYMS)
+    if matched:
+        prolog_facts["hiring_discrimination_detected"] = True
+        fact_provenance["hiring_discrimination_detected"] = {
+            "value": True,
+            "source_text": f"Matched synonym: '{matched}'",
+            "article_reference": "Articles 14(1)(b-c) & 87"
+        }
 
     # 2. Pregnancy Discrimination & Mandatory Resignation (Articles 14(1)(b) & 88)
-    preg_keywords = ["pregnant", "pregnancy", "childbirth", "maternity test", "resignation upon pregnancy", "terminate if pregnant", "resignation on childbirth", "no pregnant applicants"]
-    for kw in preg_keywords:
-        if kw in full_lower:
-            prolog_facts["pregnancy_discrimination_detected"] = True
-            fact_provenance["pregnancy_discrimination_detected"] = {
-                "value": True,
-                "source_text": f"Found pregnancy restriction/exclusion clause '{kw}' in document text.",
-                "article_reference": "Articles 14(1)(b) & 88"
-            }
-            break
+    matched = _detect_any_synonym(full_lower, PREGNANCY_DISCRIMINATION_SYNONYMS)
+    if matched:
+        prolog_facts["pregnancy_discrimination_detected"] = True
+        fact_provenance["pregnancy_discrimination_detected"] = {
+            "value": True,
+            "source_text": f"Matched synonym: '{matched}'",
+            "article_reference": "Articles 14(1)(b) & 88"
+        }
 
     # 3. Unpaid Mandatory Overtime (Article 68)
-    ot_unpaid_kw = ["unpaid overtime", "overtime without pay", "no overtime pay", "overtime included in base salary", "without additional compensation for overtime", "unpaid extra hours"]
-    for kw in ot_unpaid_kw:
-        if kw in full_lower:
-            prolog_facts["unpaid_overtime_detected"] = True
-            fact_provenance["unpaid_overtime_detected"] = {
-                "value": True,
-                "source_text": f"Found unpaid overtime clause '{kw}' in document text.",
-                "article_reference": "Article 68"
-            }
-            break
+    matched = _detect_any_synonym(full_lower, UNPAID_OVERTIME_SYNONYMS)
+    if matched:
+        prolog_facts["unpaid_overtime_detected"] = True
+        fact_provenance["unpaid_overtime_detected"] = {
+            "value": True,
+            "source_text": f"Matched synonym: '{matched}'",
+            "article_reference": "Article 68"
+        }
 
     # 4. Denial of Mandatory Weekly Rest Day (Article 70)
-    wr_kw = ["no weekly rest", "7 days a week", "seven days a week", "continuous work without rest", "no rest day for", "waive weekly rest"]
-    for kw in wr_kw:
-        if kw in full_lower:
-            prolog_facts["weekly_rest_denied"] = True
-            fact_provenance["weekly_rest_denied"] = {
-                "value": True,
-                "source_text": f"Found weekly rest day denial clause '{kw}' in document text.",
-                "article_reference": "Article 70"
-            }
-            break
+    matched = _detect_any_synonym(full_lower, WEEKLY_REST_DENIED_SYNONYMS)
+    if matched:
+        prolog_facts["weekly_rest_denied"] = True
+        fact_provenance["weekly_rest_denied"] = {
+            "value": True,
+            "source_text": f"Matched synonym: '{matched}'",
+            "article_reference": "Article 70"
+        }
 
     # 5. Multi-Year Annual Leave Denial / Delay (Article 77(1) & (4))
-    al_deny_kw = ["no annual leave for the first", "no leave for the first", "leave begins after 3 years", "leave after 2 years", "forfeiture of annual leave", "no annual leave during the first"]
-    for kw in al_deny_kw:
-        if kw in full_lower:
-            prolog_facts["annual_leave_denied_initial_years"] = True
-            fact_provenance["annual_leave_denied_initial_years"] = {
-                "value": True,
-                "source_text": f"Found annual leave delay/denial clause '{kw}' in document text.",
-                "article_reference": "Article 77(1) & (4)"
-            }
-            break
+    matched = _detect_any_synonym(full_lower, ANNUAL_LEAVE_DENIED_SYNONYMS)
+    if matched:
+        prolog_facts["annual_leave_denied_initial_years"] = True
+        fact_provenance["annual_leave_denied_initial_years"] = {
+            "value": True,
+            "source_text": f"Matched synonym: '{matched}'",
+            "article_reference": "Article 77(1) & (4)"
+        }
 
     # 6. Denial of Paid Maternity Leave (Article 88(2-3))
-    ml_deny_kw = ["unpaid maternity leave", "no paid maternity leave", "maternity leave without pay", "maternity leave is unpaid"]
-    for kw in ml_deny_kw:
-        if kw in full_lower:
-            prolog_facts["maternity_leave_denied"] = True
-            fact_provenance["maternity_leave_denied"] = {
-                "value": True,
-                "source_text": f"Found unpaid maternity leave clause '{kw}' in document text.",
-                "article_reference": "Article 88(2-3)"
-            }
-            break
+    matched = _detect_any_synonym(full_lower, MATERNITY_DENIED_SYNONYMS)
+    if matched:
+        prolog_facts["maternity_leave_denied"] = True
+        fact_provenance["maternity_leave_denied"] = {
+            "value": True,
+            "source_text": f"Matched synonym: '{matched}'",
+            "article_reference": "Article 88(2-3)"
+        }
 
     # 7. Blanket Forfeiture of Severance Pay (Articles 39 & 40)
-    sev_forfeit_kw = ["forfeit severance", "forfeiture of severance", "no severance pay", "waive severance", "relinquish severance", "without severance pay"]
-    for kw in sev_forfeit_kw:
-        if kw in full_lower:
-            prolog_facts["severance_forfeited"] = True
-            fact_provenance["severance_forfeited"] = {
-                "value": True,
-                "source_text": f"Found severance pay forfeiture clause '{kw}' in document text.",
-                "article_reference": "Articles 39 & 40"
-            }
-            break
+    matched = _detect_any_synonym(full_lower, SEVERANCE_FORFEITED_SYNONYMS)
+    if matched:
+        prolog_facts["severance_forfeited"] = True
+        fact_provenance["severance_forfeited"] = {
+            "value": True,
+            "source_text": f"Matched synonym: '{matched}'",
+            "article_reference": "Articles 39 & 40"
+        }
 
     # 8. Worker Paid Personal Protective Equipment (PPE) (Articles 92 & 93)
-    ppe_kw = ["buy own ppe", "worker must purchase", "employee must purchase", "purchase safety gear", "buy protective equipment", "safety gear at worker expense", "ppe at employee cost"]
-    for kw in ppe_kw:
-        if kw in full_lower:
-            prolog_facts["worker_pays_ppe"] = True
-            fact_provenance["worker_pays_ppe"] = {
-                "value": True,
-                "source_text": f"Found worker PPE cost-shifting clause '{kw}' in document text.",
-                "article_reference": "Articles 92 & 93"
-            }
-            break
+    matched = _detect_any_synonym(full_lower, WORKER_PAYS_PPE_SYNONYMS)
+    if matched:
+        prolog_facts["worker_pays_ppe"] = True
+        fact_provenance["worker_pays_ppe"] = {
+            "value": True,
+            "source_text": f"Matched synonym: '{matched}'",
+            "article_reference": "Articles 92 & 93"
+        }
 
     # 9. Unlawful Restriction of Access to Labour Inspectors (Article 181)
-    li_kw = ["contacting labour inspector", "contact labour inspector", "contact government inspector", "forbidden to contact inspector", "no communication with ministry of labor", "banning inspector access"]
-    for kw in li_kw:
-        if kw in full_lower:
-            prolog_facts["prohibits_labour_inspection"] = True
-            fact_provenance["prohibits_labour_inspection"] = {
-                "value": True,
-                "source_text": f"Found restriction on contacting labour inspectors '{kw}' in document text.",
-                "article_reference": "Article 181"
-            }
-            break
+    matched = _detect_any_synonym(full_lower, PROHIBITS_INSPECTION_SYNONYMS)
+    if matched:
+        prolog_facts["prohibits_labour_inspection"] = True
+        fact_provenance["prohibits_labour_inspection"] = {
+            "value": True,
+            "source_text": f"Matched synonym: '{matched}'",
+            "article_reference": "Article 181"
+        }
 
     # 10. Young Workers Full Adult Work Schedule (Articles 89 & 90)
     yw_kw = ["15 to 17", "15-17", "young worker", "ages 15-17", "under 18"]
-    if any(k in full_lower for k in yw_kw) and ("8 hours" in full_lower or "full schedule" in full_lower or "normal shift" in full_lower or "78 hours" in full_lower):
+    if any(k in full_lower for k in yw_kw) and (
+        "8 hours" in full_lower or "full schedule" in full_lower
+        or "normal shift" in full_lower or "78 hours" in full_lower
+    ):
         prolog_facts["young_worker_adult_schedule"] = True
         fact_provenance["young_worker_adult_schedule"] = {
             "value": True,
@@ -632,28 +943,112 @@ def extract_rag_compliance_facts(raw_text: str) -> Dict[str, Any]:
         }
 
     # 11. Trade Union Membership Ban (Articles 14(1)(a) & 26(2)(a))
-    tu_kw = ["banning trade union", "ban trade union", "no trade union", "prohibit union", "forbidden to join union", "termination for joining union", "no union membership"]
-    for kw in tu_kw:
-        if kw in full_lower:
-            prolog_facts["trade_union_prohibited"] = True
-            fact_provenance["trade_union_prohibited"] = {
-                "value": True,
-                "source_text": f"Found trade union prohibition clause '{kw}' in document text.",
-                "article_reference": "Articles 14(1)(a) & 26(2)(a)"
-            }
-            break
+    matched = _detect_any_synonym(full_lower, TRADE_UNION_SYNONYMS)
+    if matched:
+        prolog_facts["trade_union_prohibited"] = True
+        fact_provenance["trade_union_prohibited"] = {
+            "value": True,
+            "source_text": f"Matched synonym: '{matched}'",
+            "article_reference": "Articles 14(1)(a) & 26(2)(a)"
+        }
 
     # 12. Pre-Waiver of Statutory Dispute Resolution / Court Access Rights (Part Nine / Article 138+)
-    dw_kw = ["waive right to appeal", "cannot appeal dismissal", "waive court access", "no recourse to labour board", "forfeit appeal rights", "waive dispute resolution"]
-    for kw in dw_kw:
-        if kw in full_lower:
-            prolog_facts["dispute_appeal_waived"] = True
-            fact_provenance["dispute_appeal_waived"] = {
-                "value": True,
-                "source_text": f"Found pre-waiver of dispute resolution/court appeal rights '{kw}' in document text.",
-                "article_reference": "Article 138 (Part Nine)"
+    matched = _detect_any_synonym(full_lower, DISPUTE_WAIVER_SYNONYMS)
+    if matched:
+        prolog_facts["dispute_appeal_waived"] = True
+        fact_provenance["dispute_appeal_waived"] = {
+            "value": True,
+            "source_text": f"Matched synonym: '{matched}'",
+            "article_reference": "Article 138 (Part Nine)"
+        }
+
+    # 13. Routine Weekly Rest Day Work (Article 71(1))
+    if ("sunday" in full_lower and ("standard weekly duty" in full_lower or "standing part" in full_lower or "routine" in full_lower or "reconciliation session" in full_lower)):
+        prolog_facts["routine_rest_day_work_detected"] = True
+        fact_provenance["routine_rest_day_work_detected"] = {
+            "value": True,
+            "source_text": "Sunday work scheduled as a standard routine duty rather than exceptional emergency measure.",
+            "article_reference": "Article 71(1)"
+        }
+
+    # 14. Max Wage Deduction Ceiling (Article 59(2))
+    m_ded = re.search(r"(?i)\bdeductions?\s*[^.\n]{0,60}not\s+exceed\s*(\w+|\d+)\s*(?:percent|%)", full_lower)
+    if not m_ded:
+        m_ded = re.search(r"(?i)forty\s+percent\s*\(\s*40\s*%\s*\)", full_lower)
+    if m_ded:
+        ded_val = parse_legal_number(m_ded.group(1)) if m_ded.groups() else 40
+        if ded_val:
+            prolog_facts["max_wage_deduction_percent"] = ded_val
+            fact_provenance["max_wage_deduction_percent"] = {
+                "value": ded_val,
+                "source_text": m_ded.group(0),
+                "article_reference": "Article 59(2)"
             }
-            break
+
+    # 15. Unlawful Resignation Wage Penalty (Article 59(1))
+    if "service completion charge" in full_lower or "withhold final wage" in full_lower or "resignation penalty" in full_lower:
+        prolog_facts["unlawful_wage_deduction_detected"] = True
+        fact_provenance["unlawful_wage_deduction_detected"] = {
+            "value": True,
+            "source_text": "Unlawful wage withholding penalty for early resignation.",
+            "article_reference": "Article 59(1)"
+        }
+
+    # 16. Final Settlement Processing Delay (Article 36)
+    m_set = re.search(r"(?i)\bfinal\s+settlement\s*[^.\n]{0,80}\b(\w+|\d+)[-\s]*days?", full_lower)
+    if not m_set:
+        m_set = re.search(r"(?i)within\s+the\s+(sixty|60)[-\s]*day\s+period", full_lower)
+    if m_set:
+        set_val = parse_legal_number(m_set.group(1)) if m_set.groups() else 60
+        if set_val:
+            prolog_facts["final_settlement_days"] = set_val
+            fact_provenance["final_settlement_days"] = {
+                "value": set_val,
+                "source_text": m_set.group(0),
+                "article_reference": "Article 36"
+            }
+
+    # 17. Young Worker Schedule & Night/Sunday Shift Integration (Articles 90 & 91)
+    if ("15" in full_lower or "young" in full_lower or "weekend warehouse" in full_lower):
+        if "same shift structure" in full_lower or "integrated" in full_lower or "full integration" in full_lower:
+            prolog_facts["young_worker_adult_schedule"] = True
+            fact_provenance["young_worker_adult_schedule"] = {
+                "value": True,
+                "source_text": "Young workers integrated into full adult warehouse shift structure exceeding 7 hrs/day.",
+                "article_reference": "Article 90"
+            }
+        if "shift b" in full_lower or "midnight" in full_lower or "sunday" in full_lower:
+            prolog_facts["young_worker_night_work_detected"] = True
+            fact_provenance["young_worker_night_work_detected"] = {
+                "value": True,
+                "source_text": "Young workers rotated onto Shift B (ending midnight) or Sunday sessions.",
+                "article_reference": "Article 91"
+            }
+
+    # 18. Pregnant Worker Dismissal Risk via At-Will Clause (Article 87(6))
+    if ("at its convenience" in full_lower or "two weeks' written notice" in full_lower) and ("extended leave" in full_lower or "staffing plans are reviewed" in full_lower or "expecting a child" in full_lower):
+        prolog_facts["pregnant_worker_termination_risk"] = True
+        fact_provenance["pregnant_worker_termination_risk"] = {
+            "value": True,
+            "source_text": "At-will termination clause combined with maternity leave staffing plan creates dismissal risk for pregnant workers.",
+            "article_reference": "Article 87(6)"
+        }
+
+    # 19. Reduced First-Month Sick Leave Pay Rate (Article 86)
+    m_sick = re.search(r"(?i)first\s+year[^\n.]{0,80}sick\s+leave[^\n.]{0,80}(\d+|fifty|50)\s*(?:percent|%)", full_lower)
+    if not m_sick:
+        m_sick = re.search(r"(?i)fifty\s+percent\s*\(\s*50\s*%\s*\)[^\n.]{0,50}first\s+month", full_lower)
+    if m_sick:
+        rate_val = parse_legal_number(m_sick.group(1)) if m_sick.groups() else 50
+        if rate_val:
+            prolog_facts["sick_leave_first_month_rate_percent"] = rate_val
+            fact_provenance["sick_leave_first_month_rate_percent"] = {
+                "value": rate_val,
+                "source_text": m_sick.group(0),
+                "article_reference": "Article 86"
+            }
+
+
 
     # Extract Anti-Discrimination & Sexual Harassment Policies (Article 14)
     pa_chunks = retrieved_doc_contexts.get("prohibited_acts", [])

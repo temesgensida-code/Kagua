@@ -1115,25 +1115,46 @@
     border-color: #8a9aa8;
   }
 
+  :global([data-theme="light"]) .provenance-header {
+    border-bottom-color: rgba(0, 0, 0, 0.1);
+  }
+
   :global([data-theme="light"]) .prov-title {
     color: #2d3a45;
   }
 
   :global([data-theme="light"]) .provenance-list {
-    color: #8eaebe;
+    color: #4a5a68;
   }
 
   :global([data-theme="light"]) .prov-item {
-    border-color: #8eaebe;
+    background: rgba(175, 179, 183, 0.5);
+    border-color: #8a9aa8;
   }
 
-  :global([data-theme="light"]) .prov-key,
+  :global([data-theme="light"]) .prov-key {
+    color: #2d3a45;
+    font-weight: 600;
+  }
+
   :global([data-theme="light"]) .prov-val {
-    color: #8eaebe;
+    color: #1e434c;
+    font-weight: 700;
+  }
+
+  :global([data-theme="light"]) .prov-art-tag {
+    background: rgba(184, 150, 14, 0.18);
+    border-color: #b8960e;
+    color: #735b00;
+  }
+
+  :global([data-theme="light"]) .prov-source {
+    color: #4a5a68;
   }
 
   :global([data-theme="light"]) .prov-src-lbl {
-    color: #8eaebe;
+    color: #69818d;
+    font-weight: 700;
   }
 
   /* 2px right+bottom shadow on all action buttons */

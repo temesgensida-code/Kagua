@@ -46,8 +46,8 @@ class ParseResult(BaseModel):
 CLAUSE_PATTERNS = [
     {
         "type": "ETHIOPIAN_PROBATION_PERIOD",
-        "regex": r"(?i)\b(probation|probationary\s+period|trial\s+period|testing\s+suitability|60\s+working\s+days)\b",
-        "keywords": ["probation period", "trial period", "60 working days", "Article 11"]
+        "regex": r"(?i)\b(probation|probationary\s+period|trial\s+period|testing\s+suitability|60\s+working\s+days|evaluation\s+(?:cycle|track|period)|orientation\s+(?:track|period)|assessment\s+period)\b",
+        "keywords": ["probation period", "trial period", "60 working days", "evaluation cycle", "evaluation track", "orientation track", "Article 11"]
     },
     {
         "type": "ETHIOPIAN_WORKING_HOURS",

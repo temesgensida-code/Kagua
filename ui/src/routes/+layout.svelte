@@ -26,8 +26,9 @@
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		justify-content: center;
-		padding: 2rem 1rem;
+		justify-content: flex-start;
+		padding: 1rem 1rem 0.5rem 1rem;
+		overflow-x: hidden;
 	}
 
 	.app-main {
@@ -36,6 +37,9 @@
 		width: 100%;
 		max-width: 1680px;
 		margin: 0 auto;
-		padding: 0 1rem;
+		padding: 0 0.5rem;
+		display: flex;
+		flex-direction: column;
+		flex: 1;
 	}
 </style>

@@ -75,7 +75,7 @@
 <style>
   .header-container {
     width: 100%;
-    margin-bottom: 2rem;
+    margin-bottom: 1rem;
     text-align: left;
   }
 
@@ -84,14 +84,14 @@
     align-items: center;
     justify-content: space-between;
     width: 100%;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.5rem;
   }
 
   .tag-row {
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.5rem;
   }
 
   .pink-line {
@@ -114,7 +114,7 @@
   }
 
   .main-title {
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.5rem;
   }
 
   .text-kagua {
@@ -132,7 +132,7 @@
     line-height: 1.6;
     color: var(--text-muted);
     max-width: 540px;
-    margin-bottom: 2rem;
+    margin-bottom: 1rem;
   }
 
   .frameworks-section {
